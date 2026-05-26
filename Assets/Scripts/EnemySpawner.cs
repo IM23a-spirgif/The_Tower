@@ -22,6 +22,13 @@ public class EnemySpawner : MonoBehaviour
     private float maxEnemySpeed = 6f;
     private int maxEnemyHP = 20;
 
+    void Start()
+    {
+        EnsureWaveText();
+        StyleStartWaveButton();
+        UpdateWaveText();
+    }
+
     public void StartWave()
     {
         if (!isSpawning)
@@ -83,7 +90,7 @@ public class EnemySpawner : MonoBehaviour
     {
         if (waveText != null)
         {
-            waveText.text = "Wave: " + currentWave;
+            waveText.text = $"WAVE {currentWave}";
         }
     }
 
@@ -97,12 +104,98 @@ public class EnemySpawner : MonoBehaviour
             // If wave is multiple of 5, show special upgrade choice
             if (currentWave % 5 == 0)
             {
-                UpgradeManager upgradeManager = FindObjectOfType<UpgradeManager>();
+                UpgradeManager upgradeManager = FindAnyObjectByType<UpgradeManager>();
                 if (upgradeManager != null)
                 {
                     upgradeManager.ShowSpecialUpgradeChoice();
                 }
             }
+        }
+    }
+
+    void EnsureWaveText()
+    {
+        if (waveText != null)
+            return;
+
+        Canvas canvas = FindAnyObjectByType<Canvas>();
+        if (canvas == null)
+            return;
+
+        Transform existing = canvas.transform.Find("WaveCounter");
+        if (existing != null)
+        {
+            waveText = existing.GetComponentInChildren<TextMeshProUGUI>();
+            if (waveText != null)
+                return;
+        }
+
+        GameObject panelObject = new GameObject("WaveCounter", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform panel = panelObject.GetComponent<RectTransform>();
+        panel.SetParent(canvas.transform, false);
+        panel.anchorMin = new Vector2(0.5f, 1f);
+        panel.anchorMax = new Vector2(0.5f, 1f);
+        panel.pivot = new Vector2(0.5f, 1f);
+        panel.anchoredPosition = new Vector2(0f, -24f);
+        panel.sizeDelta = new Vector2(150f, 42f);
+
+        Image panelImage = panelObject.GetComponent<Image>();
+        panelImage.color = new Color(0.05f, 0.06f, 0.08f, 0.84f);
+
+        GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        RectTransform textRect = textObject.GetComponent<RectTransform>();
+        textRect.SetParent(panel, false);
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+
+        waveText = textObject.GetComponent<TextMeshProUGUI>();
+        waveText.alignment = TextAlignmentOptions.Center;
+        waveText.fontSize = 21f;
+        waveText.fontStyle = FontStyles.Bold;
+        waveText.color = new Color(0.92f, 0.95f, 1f, 1f);
+        waveText.raycastTarget = false;
+    }
+
+    void StyleStartWaveButton()
+    {
+        if (startWaveButton == null)
+            return;
+
+        RectTransform rect = startWaveButton.GetComponent<RectTransform>();
+        if (rect != null)
+        {
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -76f);
+            rect.sizeDelta = new Vector2(180f, 44f);
+        }
+
+        Image image = startWaveButton.GetComponent<Image>();
+        if (image != null)
+        {
+            image.color = new Color(0.2f, 0.66f, 0.9f, 1f);
+        }
+
+        ColorBlock colors = startWaveButton.colors;
+        colors.normalColor = new Color(0.2f, 0.66f, 0.9f, 1f);
+        colors.highlightedColor = new Color(0.33f, 0.78f, 1f, 1f);
+        colors.pressedColor = new Color(0.12f, 0.48f, 0.7f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = new Color(0.18f, 0.22f, 0.27f, 0.7f);
+        colors.colorMultiplier = 1f;
+        startWaveButton.colors = colors;
+
+        TextMeshProUGUI label = startWaveButton.GetComponentInChildren<TextMeshProUGUI>();
+        if (label != null)
+        {
+            label.text = "START WAVE";
+            label.fontSize = 20f;
+            label.fontStyle = FontStyles.Bold;
+            label.color = Color.white;
+            label.raycastTarget = false;
         }
     }
 }

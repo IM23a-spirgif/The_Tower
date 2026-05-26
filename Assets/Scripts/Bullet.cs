@@ -15,6 +15,7 @@ public class Bullet : MonoBehaviour
         {
             target = enemy.transform;
             lastKnownDirection = (target.position - transform.position).normalized; // Store initial direction
+            UpdateRotation();
         }
     }
 
@@ -35,10 +36,19 @@ public class Bullet : MonoBehaviour
         }
 
         // Move bullet in the last known direction
+        UpdateRotation();
         transform.position += (Vector3)lastKnownDirection * speed * Time.deltaTime;
 
         // Destroy bullet after 5 seconds to prevent infinite movement
         Destroy(gameObject, 5f);
+    }
+
+    void UpdateRotation()
+    {
+        if (lastKnownDirection.sqrMagnitude <= Mathf.Epsilon)
+            return;
+
+        transform.right = lastKnownDirection;
     }
 
     void OnTriggerEnter2D(Collider2D other)

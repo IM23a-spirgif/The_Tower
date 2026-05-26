@@ -6,160 +6,491 @@ using UnityEngine.UI;
 
 public class UpgradeManager : MonoBehaviour
 {
-    public GameObject[] normalUpgradePrefabs;
-    public GameObject[] specialUpgradePrefabs;
+    enum FreeUpgradeType
+    {
+        KillBonus,
+        HitBonus
+    }
 
-    [HideInInspector] public List<UpgradeCard.UpgradeType> unlockedUpgrades = new List<UpgradeCard.UpgradeType>();
+    struct CardDefinition
+    {
+        public UpgradeCard.UpgradeType type;
+        public string title;
+        public string description;
+        public string rarity;
+        public int maxStacks;
+        public int baseCost;
+    }
 
-    public Transform specialUpgradeSpawnParent;
-    public float specialUpgradeSpacing = 2f;
+    struct UpgradeOffer
+    {
+        public UpgradeCard.UpgradeType paidType;
+        public FreeUpgradeType freeType;
+        public bool isFree;
+        public string title;
+        public string description;
+        public string footer;
+        public string rarity;
+    }
 
     public Tower tower;
     public int bits = 5;
     public TextMeshProUGUI bitsText;
 
-    private readonly Dictionary<UpgradeCard.UpgradeType, int> upgradeLevels = new Dictionary<UpgradeCard.UpgradeType, int>();
-    private readonly Dictionary<UpgradeCard.UpgradeType, int> upgradeCosts = new Dictionary<UpgradeCard.UpgradeType, int>();
-    private readonly Dictionary<UpgradeCard.UpgradeType, UpgradeCard> activeCards = new Dictionary<UpgradeCard.UpgradeType, UpgradeCard>();
+    readonly Dictionary<UpgradeCard.UpgradeType, int> upgradeLevels = new Dictionary<UpgradeCard.UpgradeType, int>();
+    readonly Dictionary<UpgradeCard.UpgradeType, int> upgradeCosts = new Dictionary<UpgradeCard.UpgradeType, int>();
 
-    private RectTransform upgradeDock;
-    private RectTransform upgradeCardRow;
-    private GameObject specialOverlay;
+    GameObject choiceOverlay;
+    Action currentChoiceComplete;
+    int bonusBitsPerKill;
+    float hitBitChance;
 
-    private static readonly UpgradeCard.UpgradeType[] NormalUpgradeTypes =
+    static readonly CardDefinition[] CannonCards =
     {
-        UpgradeCard.UpgradeType.FireRate,
-        UpgradeCard.UpgradeType.Range,
-        UpgradeCard.UpgradeType.Damage
-    };
-
-    private static readonly UpgradeCard.UpgradeType[] SpecialUpgradeTypes =
-    {
-        UpgradeCard.UpgradeType.MultiShot,
-        UpgradeCard.UpgradeType.Homing,
-        UpgradeCard.UpgradeType.Ricochet
+        Card(UpgradeCard.UpgradeType.ReinforcedPowder, "REINFORCED POWDER", "Shell Damage +15%.", "Common", 8, 3),
+        Card(UpgradeCard.UpgradeType.ExpandedPayload, "EXPANDED PAYLOAD", "Blast Radius +12%.", "Common", 6, 3),
+        Card(UpgradeCard.UpgradeType.AutoLoader, "AUTO-LOADER", "Reload Speed +10%.", "Common", 8, 3),
+        Card(UpgradeCard.UpgradeType.HeavyCaliber, "HEAVY CALIBER", "Shells gain +25% damage but Reload Speed -8%.", "Uncommon", 5, 5),
+        Card(UpgradeCard.UpgradeType.ShockwaveShells, "SHOCKWAVE SHELLS", "Explosion knockback increased slightly.", "Uncommon", 4, 5),
+        Card(UpgradeCard.UpgradeType.ShrapnelRounds, "SHRAPNEL ROUNDS", "Explosion edges deal shrapnel damage equal to 35% shell damage.", "Rare", 5, 7),
+        Card(UpgradeCard.UpgradeType.FragmentBurst, "FRAGMENT BURST", "Explosions release 3 metal fragments.", "Rare", 3, 7),
+        Card(UpgradeCard.UpgradeType.BurningDebris, "BURNING DEBRIS", "Explosions leave burning ground for 2 seconds.", "Rare", 4, 7),
+        Card(UpgradeCard.UpgradeType.ConcussiveImpact, "CONCUSSIVE IMPACT", "Explosion hits slow enemies by 20% for 1 second.", "Rare", 3, 7),
+        Card(UpgradeCard.UpgradeType.CraterMaker, "CRATER MAKER", "Direct hits create a lingering slowing crater.", "Epic", 2, 10),
+        Card(UpgradeCard.UpgradeType.ChainDetonation, "CHAIN DETONATION", "Enemies killed by explosions detonate for 20% shell damage.", "Epic", 3, 10),
+        Card(UpgradeCard.UpgradeType.SiegeShells, "SIEGE SHELLS", "Every 5th shot fires a massive shell. Stacks reduce required shots.", "Epic", 3, 10),
+        Card(UpgradeCard.UpgradeType.ArmorPiercingCore, "ARMOR-PIERCING CORE", "Direct-hit damage pierces defenses, increasing direct damage.", "Rare", 4, 7),
+        Card(UpgradeCard.UpgradeType.DoubleCharge, "DOUBLE CHARGE", "Every reload has a 20% chance to instantly load a second shell.", "Rare", 3, 7),
+        Card(UpgradeCard.UpgradeType.SiegePlatform, "SIEGE PLATFORM", "Stable firing increases damage by 35%.", "Epic", 2, 10),
+        Card(UpgradeCard.UpgradeType.ExecutionShell, "EXECUTION SHELL", "Shells deal bonus damage to enemies above 80% health.", "Uncommon", 4, 5),
+        Card(UpgradeCard.UpgradeType.FinisherPayload, "FINISHER PAYLOAD", "Shells deal bonus damage to enemies below 30% health.", "Uncommon", 4, 5),
+        Card(UpgradeCard.UpgradeType.StabilizedBarrel, "STABILIZED BARREL", "Projectile speed +30%.", "Common", 4, 3),
+        Card(UpgradeCard.UpgradeType.SmartTargeting, "SMART TARGETING", "Prioritizes enemies near the center tower.", "Rare", 1, 7),
+        Card(UpgradeCard.UpgradeType.RangefinderOptics, "RANGEFINDER OPTICS", "Tower range +18%.", "Common", 5, 3),
+        Card(UpgradeCard.UpgradeType.DelayedFuse, "DELAYED FUSE", "Shells explode slightly later for deeper penetration and radius.", "Rare", 2, 7),
+        Card(UpgradeCard.UpgradeType.OverloadedChamber, "OVERLOADED CHAMBER", "Damage +40%, Reload Speed -15%.", "Rare", 3, 7),
+        Card(UpgradeCard.UpgradeType.VolatileMunitions, "VOLATILE MUNITIONS", "Critical kills create secondary explosions.", "Epic", 2, 10),
+        Card(UpgradeCard.UpgradeType.GlassCannonDesign, "GLASS CANNON DESIGN", "Massive damage, but pauses after every 10 shots to cool down.", "Legendary", 1, 14),
+        Card(UpgradeCard.UpgradeType.ApocalypseRound, "APOCALYPSE ROUND", "Every 20th shot fires an enormous extreme-damage shell.", "Legendary", 1, 14),
     };
 
     void Start()
     {
-        EnsureUpgradeDock();
         InitializeUpgrades();
+        EnsureBitsText();
         UpdateBitsText();
     }
 
     public void EnemyKilled()
     {
-        bits++;
+        bits += 1 + bonusBitsPerKill;
         UpdateBitsText();
-        UpdateUpgradeCards();
     }
 
-    void InitializeUpgrades()
+    public void EnemyHitByBullet()
     {
-        foreach (UpgradeCard.UpgradeType type in Enum.GetValues(typeof(UpgradeCard.UpgradeType)))
-        {
-            if (!upgradeLevels.ContainsKey(type))
-                upgradeLevels[type] = 0;
-            if (!upgradeCosts.ContainsKey(type))
-                upgradeCosts[type] = GetBaseCost(type);
-        }
-
-        foreach (UpgradeCard.UpgradeType type in NormalUpgradeTypes)
-        {
-            SpawnUpgradeCard(type, 0f);
-        }
-    }
-
-    void SpawnUpgradeCard(UpgradeCard.UpgradeType upgradeType, float xPos)
-    {
-        if (activeCards.ContainsKey(upgradeType))
+        if (hitBitChance <= 0f)
             return;
 
-        EnsureUpgradeDock();
-
-        int currentLevel = upgradeLevels[upgradeType] + 1;
-        GameObject cardObject = CreateUpgradeCardObject(upgradeType, upgradeCardRow, false);
-        UpgradeCard upgradeCard = cardObject.GetComponent<UpgradeCard>();
-        upgradeCard.upgradeType = upgradeType;
-        upgradeCard.upgradeLevel = currentLevel;
-        upgradeCard.upgradeCost = upgradeCosts[upgradeType];
-        upgradeCard.upgradeManager = this;
-        upgradeCard.UpdateUpgradeUI();
-
-        Button button = cardObject.GetComponent<Button>();
-        button.onClick.AddListener(() => TryUpgrade(upgradeType));
-
-        activeCards[upgradeType] = upgradeCard;
-        UpdateCardAffordability(upgradeCard);
+        if (UnityEngine.Random.value <= hitBitChance)
+        {
+            bits++;
+            UpdateBitsText();
+        }
     }
 
-    public int GetBaseCost(UpgradeCard.UpgradeType type)
+    public void ShowWaveUpgradeChoice(Action onChoiceComplete)
     {
-        switch (type)
+        if (choiceOverlay != null)
+            return;
+
+        InitializeUpgrades();
+        EnsureBitsText();
+        currentChoiceComplete = onChoiceComplete;
+
+        List<UpgradeOffer> offers = BuildOffers();
+        if (offers.Count == 0)
         {
-            case UpgradeCard.UpgradeType.FireRate: return 3;
-            case UpgradeCard.UpgradeType.Range: return 2;
-            case UpgradeCard.UpgradeType.Damage: return 5;
-            default: return 1;
+            CompleteChoice();
+            return;
         }
+
+        Time.timeScale = 0f;
+        choiceOverlay = CreateOverlay(offers[0].isFree);
+        RectTransform row = CreateRect("UpgradeChoices", choiceOverlay.transform);
+        row.anchorMin = new Vector2(0.5f, 0.5f);
+        row.anchorMax = new Vector2(0.5f, 0.5f);
+        row.pivot = new Vector2(0.5f, 0.5f);
+        row.anchoredPosition = new Vector2(0f, -12f);
+        row.sizeDelta = new Vector2(700f, 212f);
+
+        HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+        layout.spacing = 16f;
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+
+        foreach (UpgradeOffer offer in offers)
+            CreateChoiceCard(offer, row);
+    }
+
+    public void ShowSpecialUpgradeChoice()
+    {
+        ShowWaveUpgradeChoice(null);
     }
 
     public void TryUpgrade(UpgradeCard.UpgradeType type)
     {
-        if (!upgradeCosts.ContainsKey(type) || bits < upgradeCosts[type])
+        if (!upgradeCosts.ContainsKey(type) || bits < upgradeCosts[type] || IsAtMaxStacks(type))
             return;
 
-        bits -= upgradeCosts[type];
+        BuyPaidUpgrade(type);
+    }
+
+    void InitializeUpgrades()
+    {
+        foreach (CardDefinition card in CannonCards)
+        {
+            if (!upgradeLevels.ContainsKey(card.type))
+                upgradeLevels[card.type] = 0;
+            if (!upgradeCosts.ContainsKey(card.type))
+                upgradeCosts[card.type] = card.baseCost;
+        }
+    }
+
+    List<UpgradeOffer> BuildOffers()
+    {
+        List<UpgradeOffer> paidOffers = new List<UpgradeOffer>();
+        foreach (CardDefinition card in CannonCards)
+        {
+            int cost = upgradeCosts[card.type];
+            if (bits < cost || IsAtMaxStacks(card.type))
+                continue;
+
+            int nextLevel = upgradeLevels[card.type] + 1;
+            paidOffers.Add(new UpgradeOffer
+            {
+                paidType = card.type,
+                isFree = false,
+                title = card.maxStacks == 1 ? card.title : $"{card.title} {ToRoman(nextLevel)}",
+                description = card.description,
+                footer = $"Cost: {cost} Bits",
+                rarity = card.rarity
+            });
+        }
+
+        if (paidOffers.Count > 0)
+            return PickRandomWeighted(paidOffers, 3);
+
+        return new List<UpgradeOffer>
+        {
+            new UpgradeOffer
+            {
+                freeType = FreeUpgradeType.KillBonus,
+                isFree = true,
+                title = $"SALVAGE BONUS {ToRoman(bonusBitsPerKill + 1)}",
+                description = "Enemies killed give +1 extra bit from now on.",
+                footer = "Free",
+                rarity = "Supply"
+            },
+            new UpgradeOffer
+            {
+                freeType = FreeUpgradeType.HitBonus,
+                isFree = true,
+                title = $"SCRAP ROUNDS {ToRoman(Mathf.RoundToInt(hitBitChance / 0.4f) + 1)}",
+                description = "Bullet hits gain a +40% chance to give 1 bit.",
+                footer = "Free",
+                rarity = "Supply"
+            }
+        };
+    }
+
+    static List<UpgradeOffer> PickRandomWeighted(List<UpgradeOffer> source, int count)
+    {
+        List<UpgradeOffer> pool = new List<UpgradeOffer>(source);
+        List<UpgradeOffer> result = new List<UpgradeOffer>();
+
+        while (pool.Count > 0 && result.Count < count)
+        {
+            float totalWeight = 0f;
+            foreach (UpgradeOffer offer in pool)
+                totalWeight += GetRarityWeight(offer.rarity);
+
+            float roll = UnityEngine.Random.value * totalWeight;
+            int pickedIndex = 0;
+            for (int i = 0; i < pool.Count; i++)
+            {
+                roll -= GetRarityWeight(pool[i].rarity);
+                if (roll <= 0f)
+                {
+                    pickedIndex = i;
+                    break;
+                }
+            }
+
+            result.Add(pool[pickedIndex]);
+            pool.RemoveAt(pickedIndex);
+        }
+
+        return result;
+    }
+
+    static float GetRarityWeight(string rarity)
+    {
+        switch (rarity)
+        {
+            case "Common": return 10f;
+            case "Uncommon": return 6f;
+            case "Rare": return 3.5f;
+            case "Epic": return 1.5f;
+            case "Legendary": return 0.55f;
+            default: return 1f;
+        }
+    }
+
+    void CreateChoiceCard(UpgradeOffer offer, Transform parent)
+    {
+        GameObject cardObject = new GameObject(offer.title + "Card", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        RectTransform cardRect = cardObject.GetComponent<RectTransform>();
+        cardRect.SetParent(parent, false);
+
+        LayoutElement layout = cardObject.AddComponent<LayoutElement>();
+        layout.preferredWidth = 212f;
+        layout.preferredHeight = 198f;
+        layout.minWidth = layout.preferredWidth;
+        layout.minHeight = layout.preferredHeight;
+
+        Image image = cardObject.GetComponent<Image>();
+        image.color = offer.isFree ? new Color(0.11f, 0.17f, 0.13f, 0.98f) : GetRarityColor(offer.rarity);
+
+        Button button = cardObject.GetComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = image.color;
+        colors.highlightedColor = image.color + new Color(0.04f, 0.05f, 0.06f, 0f);
+        colors.pressedColor = new Color(0.06f, 0.28f, 0.36f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = new Color(0.08f, 0.08f, 0.09f, 0.78f);
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        button.onClick.AddListener(() => SelectOffer(offer));
+
+        TextMeshProUGUI rarity = CreateText("Rarity", cardRect, offer.rarity.ToUpperInvariant(), 11f, FontStyles.Bold, TextAlignmentOptions.Center);
+        TextMeshProUGUI title = CreateText("Title", cardRect, offer.title, 16f, FontStyles.Bold, TextAlignmentOptions.Center);
+        TextMeshProUGUI description = CreateText("Description", cardRect, offer.description, 12f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        TextMeshProUGUI footer = CreateText("Footer", cardRect, offer.footer, 14f, FontStyles.Bold, TextAlignmentOptions.Center);
+        footer.color = offer.isFree ? new Color(0.56f, 0.95f, 0.58f, 1f) : new Color(0.98f, 0.87f, 0.32f, 1f);
+
+        PlaceCardText(rarity.rectTransform, 12f, -8f, -12f, 18f, true);
+        PlaceCardText(title.rectTransform, 12f, -30f, -12f, 46f, true);
+        PlaceCardText(description.rectTransform, 16f, -82f, -16f, 72f, true);
+        PlaceCardText(footer.rectTransform, 12f, 12f, -12f, 28f, false);
+    }
+
+    static Color GetRarityColor(string rarity)
+    {
+        switch (rarity)
+        {
+            case "Common": return new Color(0.1f, 0.12f, 0.14f, 0.98f);
+            case "Uncommon": return new Color(0.09f, 0.16f, 0.12f, 0.98f);
+            case "Rare": return new Color(0.08f, 0.13f, 0.2f, 0.98f);
+            case "Epic": return new Color(0.15f, 0.1f, 0.19f, 0.98f);
+            case "Legendary": return new Color(0.2f, 0.15f, 0.07f, 0.98f);
+            default: return new Color(0.1f, 0.11f, 0.14f, 0.98f);
+        }
+    }
+
+    void SelectOffer(UpgradeOffer offer)
+    {
+        if (offer.isFree)
+            ApplyFreeUpgrade(offer.freeType);
+        else
+            BuyPaidUpgrade(offer.paidType);
+
+        CompleteChoice();
+    }
+
+    void BuyPaidUpgrade(UpgradeCard.UpgradeType type)
+    {
+        int cost = upgradeCosts[type];
+        if (bits < cost || IsAtMaxStacks(type))
+            return;
+
+        bits -= cost;
         upgradeLevels[type]++;
-        upgradeCosts[type] += Mathf.Max(1, Mathf.RoundToInt(upgradeCosts[type] * 0.5f));
-        ApplyUpgrade(type);
+        upgradeCosts[type] += Mathf.Max(1, Mathf.RoundToInt(cost * 0.45f));
+        ApplyTowerUpgrade(type);
         UpdateBitsText();
     }
 
-    void ApplyUpgrade(UpgradeCard.UpgradeType type)
+    void ApplyTowerUpgrade(UpgradeCard.UpgradeType type)
+    {
+        if (tower == null)
+            tower = FindAnyObjectByType<Tower>();
+
+        if (tower == null)
+            return;
+
+        switch (type)
+        {
+            case UpgradeCard.UpgradeType.ReinforcedPowder:
+                tower.shellDamageMultiplier *= 1.15f;
+                break;
+            case UpgradeCard.UpgradeType.ExpandedPayload:
+                tower.splashRadius *= 1.12f;
+                break;
+            case UpgradeCard.UpgradeType.AutoLoader:
+                tower.fireRate *= 0.9f;
+                break;
+            case UpgradeCard.UpgradeType.HeavyCaliber:
+                tower.shellDamageMultiplier *= 1.25f;
+                tower.fireRate *= 1.08f;
+                break;
+            case UpgradeCard.UpgradeType.ShockwaveShells:
+                tower.explosionKnockback += 0.12f;
+                break;
+            case UpgradeCard.UpgradeType.ShrapnelRounds:
+                tower.shrapnelEdgeDamageMultiplier += 0.35f;
+                break;
+            case UpgradeCard.UpgradeType.FragmentBurst:
+                tower.fragmentCount += 3;
+                break;
+            case UpgradeCard.UpgradeType.BurningDebris:
+                tower.burningGroundDuration += 2f;
+                break;
+            case UpgradeCard.UpgradeType.ConcussiveImpact:
+                tower.concussiveSlowMultiplier = Mathf.Min(tower.concussiveSlowMultiplier, Mathf.Max(0.35f, 0.8f - 0.06f * upgradeLevels[type]));
+                tower.concussiveSlowDuration += 1f;
+                break;
+            case UpgradeCard.UpgradeType.CraterMaker:
+                tower.craterDuration += 2.5f;
+                tower.craterSlowMultiplier = Mathf.Min(tower.craterSlowMultiplier, 0.7f);
+                break;
+            case UpgradeCard.UpgradeType.ChainDetonation:
+                tower.chainDetonationMultiplier += 0.2f;
+                break;
+            case UpgradeCard.UpgradeType.SiegeShells:
+                tower.siegeShellStacks++;
+                break;
+            case UpgradeCard.UpgradeType.ArmorPiercingCore:
+                tower.directHitDamageMultiplier *= 1.25f;
+                break;
+            case UpgradeCard.UpgradeType.DoubleCharge:
+                tower.doubleChargeChance += 0.2f;
+                break;
+            case UpgradeCard.UpgradeType.SiegePlatform:
+                tower.siegePlatformStacks++;
+                break;
+            case UpgradeCard.UpgradeType.ExecutionShell:
+                tower.executionDamageMultiplier += 0.25f;
+                break;
+            case UpgradeCard.UpgradeType.FinisherPayload:
+                tower.finisherDamageMultiplier += 0.25f;
+                break;
+            case UpgradeCard.UpgradeType.StabilizedBarrel:
+                tower.projectileSpeedMultiplier *= 1.3f;
+                break;
+            case UpgradeCard.UpgradeType.SmartTargeting:
+                tower.smartTargeting = true;
+                break;
+            case UpgradeCard.UpgradeType.RangefinderOptics:
+                tower.attackRange *= 1.18f;
+                break;
+            case UpgradeCard.UpgradeType.DelayedFuse:
+                tower.delayedFuseSeconds += 0.08f;
+                tower.delayedFuseRadiusMultiplier *= 1.16f;
+                break;
+            case UpgradeCard.UpgradeType.OverloadedChamber:
+                tower.shellDamageMultiplier *= 1.4f;
+                tower.fireRate *= 1.15f;
+                break;
+            case UpgradeCard.UpgradeType.VolatileMunitions:
+                tower.volatileSecondaryExplosionMultiplier += 0.35f;
+                break;
+            case UpgradeCard.UpgradeType.GlassCannonDesign:
+                tower.glassCannonDesign = true;
+                tower.shellDamageMultiplier *= 2.25f;
+                break;
+            case UpgradeCard.UpgradeType.ApocalypseRound:
+                tower.apocalypseRound = true;
+                break;
+        }
+    }
+
+    void ApplyFreeUpgrade(FreeUpgradeType type)
     {
         switch (type)
         {
-            case UpgradeCard.UpgradeType.FireRate:
-                tower.fireRate *= 0.9f;
+            case FreeUpgradeType.KillBonus:
+                bonusBitsPerKill++;
                 break;
-            case UpgradeCard.UpgradeType.Range:
-                tower.attackRange += 2.5f;
-                break;
-            case UpgradeCard.UpgradeType.Damage:
-                tower.damage += 1;
-                break;
-            case UpgradeCard.UpgradeType.Ricochet:
-                tower.ricochetEnabled = true;
-                break;
-            case UpgradeCard.UpgradeType.Homing:
-                tower.homingEnabled = true;
-                break;
-            case UpgradeCard.UpgradeType.MultiShot:
-                tower.extraBullets += 1;
+            case FreeUpgradeType.HitBonus:
+                hitBitChance += 0.4f;
                 break;
         }
 
-        UpdateUpgradeCards();
+        UpdateBitsText();
     }
 
-    void UpdateUpgradeCards()
+    void CompleteChoice()
     {
-        foreach (UpgradeCard card in activeCards.Values)
+        if (choiceOverlay != null)
+            Destroy(choiceOverlay);
+
+        choiceOverlay = null;
+        Time.timeScale = 1f;
+
+        Action callback = currentChoiceComplete;
+        currentChoiceComplete = null;
+        callback?.Invoke();
+    }
+
+    bool IsAtMaxStacks(UpgradeCard.UpgradeType type)
+    {
+        CardDefinition card = GetCard(type);
+        return card.maxStacks > 0 && upgradeLevels.TryGetValue(type, out int level) && level >= card.maxStacks;
+    }
+
+    void EnsureBitsText()
+    {
+        if (bitsText != null)
         {
-            card.upgradeLevel = upgradeLevels[card.upgradeType] + 1;
-            card.upgradeCost = upgradeCosts[card.upgradeType];
-            card.UpdateUpgradeUI();
-            UpdateCardAffordability(card);
+            StyleBitsText();
+            return;
         }
+
+        Canvas canvas = FindAnyObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            GameObject canvasObject = new GameObject("GameUI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(800f, 600f);
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        Transform existing = canvas.transform.Find("BitsCounter");
+        if (existing != null)
+            bitsText = existing.GetComponent<TextMeshProUGUI>();
+
+        if (bitsText == null)
+        {
+            GameObject textObject = new GameObject("BitsCounter", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            RectTransform rect = textObject.GetComponent<RectTransform>();
+            rect.SetParent(canvas.transform, false);
+            bitsText = textObject.GetComponent<TextMeshProUGUI>();
+        }
+
+        StyleBitsText();
     }
 
     void UpdateBitsText()
     {
-        if (bitsText == null)
-            return;
-
-        StyleBitsText();
+        EnsureBitsText();
         bitsText.text = "BITS " + bits;
     }
 
@@ -172,7 +503,7 @@ public class UpgradeManager : MonoBehaviour
             rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
             rect.anchoredPosition = new Vector2(24f, -24f);
-            rect.sizeDelta = new Vector2(150f, 42f);
+            rect.sizeDelta = new Vector2(170f, 42f);
         }
 
         bitsText.alignment = TextAlignmentOptions.Center;
@@ -188,180 +519,10 @@ public class UpgradeManager : MonoBehaviour
         outline.effectDistance = new Vector2(1.5f, -1.5f);
     }
 
-    public void ShowSpecialUpgradeChoice()
+    GameObject CreateOverlay(bool freeFallback)
     {
-        EnsureUpgradeDock();
-
-        List<UpgradeCard.UpgradeType> available = new List<UpgradeCard.UpgradeType>();
-        foreach (UpgradeCard.UpgradeType type in SpecialUpgradeTypes)
-        {
-            if (!unlockedUpgrades.Contains(type))
-                available.Add(type);
-        }
-
-        if (available.Count == 0)
-            return;
-
-        for (int i = 0; i < available.Count; i++)
-        {
-            int rand = UnityEngine.Random.Range(i, available.Count);
-            UpgradeCard.UpgradeType temp = available[i];
-            available[i] = available[rand];
-            available[rand] = temp;
-        }
-
-        Time.timeScale = 0f;
-        specialOverlay = CreateOverlay();
-        RectTransform row = CreateRect("SpecialUpgradeRow", specialOverlay.transform);
-        row.anchorMin = new Vector2(0.5f, 0.5f);
-        row.anchorMax = new Vector2(0.5f, 0.5f);
-        row.pivot = new Vector2(0.5f, 0.5f);
-        row.sizeDelta = new Vector2(590f, 190f);
-
-        HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 16f;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
-
-        int numToShow = Mathf.Min(3, available.Count);
-        for (int i = 0; i < numToShow; i++)
-        {
-            UpgradeCard.UpgradeType type = available[i];
-            GameObject cardObject = CreateUpgradeCardObject(type, row, true);
-            UpgradeCard card = cardObject.GetComponent<UpgradeCard>();
-            card.upgradeType = type;
-            card.upgradeLevel = 1;
-            card.upgradeCost = 0;
-            card.upgradeManager = this;
-            card.UpdateUpgradeUI();
-            card.upgradeCostText.text = "UNLOCK";
-
-            Button button = cardObject.GetComponent<Button>();
-            button.onClick.AddListener(() => SelectSpecialUpgrade(type));
-        }
-    }
-
-    public void UnlockSpecialUpgrade(UpgradeCard.UpgradeType type)
-    {
-        if (!upgradeLevels.ContainsKey(type))
-        {
-            upgradeLevels[type] = 0;
-            upgradeCosts[type] = GetBaseCost(type);
-        }
-
-        if (!unlockedUpgrades.Contains(type))
-            unlockedUpgrades.Add(type);
-
-        SpawnUpgradeCard(type, 0f);
-    }
-
-    void SelectSpecialUpgrade(UpgradeCard.UpgradeType type)
-    {
-        UnlockSpecialUpgrade(type);
-
-        if (specialOverlay != null)
-            Destroy(specialOverlay);
-
-        specialOverlay = null;
-        Time.timeScale = 1f;
-    }
-
-    void EnsureUpgradeDock()
-    {
-        if (upgradeDock != null)
-            return;
-
-        Canvas canvas = FindAnyObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            GameObject canvasObject = new GameObject("GameUI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(800f, 600f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
-
-        Transform existingDock = canvas.transform.Find("UpgradeDock");
-        upgradeDock = existingDock != null ? existingDock.GetComponent<RectTransform>() : CreateRect("UpgradeDock", canvas.transform);
-        upgradeDock.anchorMin = new Vector2(0f, 0f);
-        upgradeDock.anchorMax = new Vector2(1f, 0f);
-        upgradeDock.pivot = new Vector2(0.5f, 0f);
-        upgradeDock.anchoredPosition = Vector2.zero;
-        upgradeDock.sizeDelta = new Vector2(0f, 150f);
-        upgradeDock.SetAsLastSibling();
-
-        Image dockImage = upgradeDock.GetComponent<Image>();
-        if (dockImage == null)
-            dockImage = upgradeDock.gameObject.AddComponent<Image>();
-        dockImage.color = new Color(0.03f, 0.035f, 0.045f, 0.94f);
-        dockImage.raycastTarget = true;
-
-        Transform existingRow = upgradeDock.Find("Cards");
-        upgradeCardRow = existingRow != null ? existingRow.GetComponent<RectTransform>() : CreateRect("Cards", upgradeDock);
-        upgradeCardRow.anchorMin = new Vector2(0.5f, 0.5f);
-        upgradeCardRow.anchorMax = new Vector2(0.5f, 0.5f);
-        upgradeCardRow.pivot = new Vector2(0.5f, 0.5f);
-        upgradeCardRow.anchoredPosition = new Vector2(0f, 6f);
-        upgradeCardRow.sizeDelta = new Vector2(720f, 126f);
-
-        HorizontalLayoutGroup layout = upgradeCardRow.GetComponent<HorizontalLayoutGroup>();
-        if (layout == null)
-            layout = upgradeCardRow.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 12f;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
-    }
-
-    GameObject CreateUpgradeCardObject(UpgradeCard.UpgradeType type, Transform parent, bool specialChoice)
-    {
-        GameObject cardObject = new GameObject(type + "Card", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button), typeof(UpgradeCard));
-        RectTransform cardRect = cardObject.GetComponent<RectTransform>();
-        cardRect.SetParent(parent, false);
-
-        LayoutElement layout = cardObject.AddComponent<LayoutElement>();
-        layout.preferredWidth = specialChoice ? 180f : 150f;
-        layout.preferredHeight = specialChoice ? 180f : 116f;
-        layout.minWidth = layout.preferredWidth;
-        layout.minHeight = layout.preferredHeight;
-
-        Image image = cardObject.GetComponent<Image>();
-        image.color = specialChoice ? new Color(0.11f, 0.12f, 0.16f, 0.98f) : new Color(0.1f, 0.11f, 0.14f, 0.98f);
-
-        Button button = cardObject.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = image.color;
-        colors.highlightedColor = new Color(0.16f, 0.19f, 0.25f, 1f);
-        colors.pressedColor = new Color(0.06f, 0.28f, 0.36f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = new Color(0.08f, 0.08f, 0.09f, 0.78f);
-        colors.colorMultiplier = 1f;
-        button.colors = colors;
-
-        UpgradeCard card = cardObject.GetComponent<UpgradeCard>();
-        card.upgradeText = CreateText("UpgradeText", cardRect, GetDisplayName(type), specialChoice ? 20f : 17f, FontStyles.Bold, TextAlignmentOptions.Center);
-        card.upgradeDescription = CreateText("UpgradeDescription", cardRect, GetDescription(type), specialChoice ? 13f : 11f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
-        card.upgradeCostText = CreateText("UpgradeCost", cardRect, "", specialChoice ? 12f : 11f, FontStyles.Bold, TextAlignmentOptions.Center);
-
-        PlaceCardText(card.upgradeText.rectTransform, 10f, -8f, -10f, 28f, true);
-        PlaceCardText(card.upgradeDescription.rectTransform, 12f, -40f, -12f, 44f, true);
-        PlaceCardText(card.upgradeCostText.rectTransform, 10f, 8f, -10f, 22f, false);
-
-        return cardObject;
-    }
-
-    GameObject CreateOverlay()
-    {
-        Canvas canvas = upgradeDock.GetComponentInParent<Canvas>();
-        GameObject overlay = new GameObject("SpecialUpgradeOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        Canvas canvas = bitsText.GetComponentInParent<Canvas>();
+        GameObject overlay = new GameObject("WaveUpgradeOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = overlay.GetComponent<RectTransform>();
         rect.SetParent(canvas.transform, false);
         rect.anchorMin = Vector2.zero;
@@ -374,29 +535,49 @@ public class UpgradeManager : MonoBehaviour
         image.color = new Color(0f, 0f, 0f, 0.74f);
         image.raycastTarget = true;
 
-        TextMeshProUGUI title = CreateText("Title", rect, "CHOOSE UPGRADE", 28f, FontStyles.Bold, TextAlignmentOptions.Center);
+        string titleText = freeFallback ? "LOW BITS: CHOOSE SUPPLY BOOST" : "CHOOSE CANNON UPGRADE";
+        TextMeshProUGUI title = CreateText("Title", rect, titleText, 28f, FontStyles.Bold, TextAlignmentOptions.Center);
         RectTransform titleRect = title.rectTransform;
         titleRect.anchorMin = new Vector2(0.5f, 0.5f);
         titleRect.anchorMax = new Vector2(0.5f, 0.5f);
         titleRect.pivot = new Vector2(0.5f, 0.5f);
-        titleRect.anchoredPosition = new Vector2(0f, 128f);
-        titleRect.sizeDelta = new Vector2(420f, 42f);
+        titleRect.anchoredPosition = new Vector2(0f, 138f);
+        titleRect.sizeDelta = new Vector2(640f, 42f);
+
+        TextMeshProUGUI bitsLabel = CreateText("Bits", rect, "BITS " + bits, 18f, FontStyles.Bold, TextAlignmentOptions.Center);
+        bitsLabel.color = new Color(0.98f, 0.87f, 0.32f, 1f);
+        RectTransform bitsRect = bitsLabel.rectTransform;
+        bitsRect.anchorMin = new Vector2(0.5f, 0.5f);
+        bitsRect.anchorMax = new Vector2(0.5f, 0.5f);
+        bitsRect.pivot = new Vector2(0.5f, 0.5f);
+        bitsRect.anchoredPosition = new Vector2(0f, 104f);
+        bitsRect.sizeDelta = new Vector2(220f, 30f);
 
         return overlay;
     }
 
-    void UpdateCardAffordability(UpgradeCard card)
+    static CardDefinition Card(UpgradeCard.UpgradeType type, string title, string description, string rarity, int maxStacks, int baseCost)
     {
-        Button button = card.GetComponent<Button>();
-        if (button != null)
-            button.interactable = bits >= card.upgradeCost;
-
-        if (card.upgradeCostText != null)
+        return new CardDefinition
         {
-            card.upgradeCostText.color = bits >= card.upgradeCost
-                ? new Color(0.98f, 0.87f, 0.32f, 1f)
-                : new Color(0.95f, 0.34f, 0.32f, 1f);
+            type = type,
+            title = title,
+            description = description,
+            rarity = rarity,
+            maxStacks = maxStacks,
+            baseCost = baseCost
+        };
+    }
+
+    static CardDefinition GetCard(UpgradeCard.UpgradeType type)
+    {
+        foreach (CardDefinition card in CannonCards)
+        {
+            if (card.type == type)
+                return card;
         }
+
+        return CannonCards[0];
     }
 
     static RectTransform CreateRect(string name, Transform parent)
@@ -433,31 +614,9 @@ public class UpgradeManager : MonoBehaviour
         rect.offsetMax = new Vector2(right, fromTop ? top : top + height);
     }
 
-    static string GetDisplayName(UpgradeCard.UpgradeType type)
+    static string ToRoman(int number)
     {
-        switch (type)
-        {
-            case UpgradeCard.UpgradeType.FireRate: return "FIRE RATE";
-            case UpgradeCard.UpgradeType.Range: return "RANGE";
-            case UpgradeCard.UpgradeType.Damage: return "DAMAGE";
-            case UpgradeCard.UpgradeType.MultiShot: return "MULTI SHOT";
-            case UpgradeCard.UpgradeType.Homing: return "HOMING";
-            case UpgradeCard.UpgradeType.Ricochet: return "RICOCHET";
-            default: return type.ToString().ToUpperInvariant();
-        }
-    }
-
-    static string GetDescription(UpgradeCard.UpgradeType type)
-    {
-        switch (type)
-        {
-            case UpgradeCard.UpgradeType.FireRate: return "Shoot 10% faster.";
-            case UpgradeCard.UpgradeType.Range: return "Increase targeting range.";
-            case UpgradeCard.UpgradeType.Damage: return "Add 1 damage per bullet.";
-            case UpgradeCard.UpgradeType.MultiShot: return "Fire one extra bullet.";
-            case UpgradeCard.UpgradeType.Homing: return "Bullets track targets.";
-            case UpgradeCard.UpgradeType.Ricochet: return "Shots can bounce onward.";
-            default: return "";
-        }
+        string[] numerals = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
+        return number < 1 || number > 10 ? number.ToString() : numerals[number - 1];
     }
 }

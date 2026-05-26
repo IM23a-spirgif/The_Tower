@@ -6,12 +6,31 @@ public class UpgradeCard : MonoBehaviour
 {
     public enum UpgradeType
     {
-        FireRate = 0,
-        Range    = 1,
-        Damage   = 2,
-        MultiShot= 3,
-        Homing   = 4,
-        Ricochet  = 5,
+        ReinforcedPowder = 0,
+        ExpandedPayload = 1,
+        AutoLoader = 2,
+        HeavyCaliber = 3,
+        ShockwaveShells = 4,
+        ShrapnelRounds = 5,
+        FragmentBurst = 6,
+        BurningDebris = 7,
+        ConcussiveImpact = 8,
+        CraterMaker = 9,
+        ChainDetonation = 10,
+        SiegeShells = 11,
+        ArmorPiercingCore = 12,
+        DoubleCharge = 13,
+        SiegePlatform = 14,
+        ExecutionShell = 15,
+        FinisherPayload = 16,
+        StabilizedBarrel = 17,
+        SmartTargeting = 18,
+        RangefinderOptics = 19,
+        DelayedFuse = 20,
+        OverloadedChamber = 21,
+        VolatileMunitions = 22,
+        GlassCannonDesign = 23,
+        ApocalypseRound = 24,
     }
 
 
@@ -79,12 +98,31 @@ public class UpgradeCard : MonoBehaviour
     {
         switch (type)
         {
-            case UpgradeType.FireRate: return "FIRE RATE";
-            case UpgradeType.Range: return "RANGE";
-            case UpgradeType.Damage: return "DAMAGE";
-            case UpgradeType.MultiShot: return "MULTI SHOT";
-            case UpgradeType.Homing: return "HOMING";
-            case UpgradeType.Ricochet: return "RICOCHET";
+            case UpgradeType.ReinforcedPowder: return "REINFORCED POWDER";
+            case UpgradeType.ExpandedPayload: return "EXPANDED PAYLOAD";
+            case UpgradeType.AutoLoader: return "AUTO-LOADER";
+            case UpgradeType.HeavyCaliber: return "HEAVY CALIBER";
+            case UpgradeType.ShockwaveShells: return "SHOCKWAVE SHELLS";
+            case UpgradeType.ShrapnelRounds: return "SHRAPNEL ROUNDS";
+            case UpgradeType.FragmentBurst: return "FRAGMENT BURST";
+            case UpgradeType.BurningDebris: return "BURNING DEBRIS";
+            case UpgradeType.ConcussiveImpact: return "CONCUSSIVE IMPACT";
+            case UpgradeType.CraterMaker: return "CRATER MAKER";
+            case UpgradeType.ChainDetonation: return "CHAIN DETONATION";
+            case UpgradeType.SiegeShells: return "SIEGE SHELLS";
+            case UpgradeType.ArmorPiercingCore: return "ARMOR-PIERCING CORE";
+            case UpgradeType.DoubleCharge: return "DOUBLE CHARGE";
+            case UpgradeType.SiegePlatform: return "SIEGE PLATFORM";
+            case UpgradeType.ExecutionShell: return "EXECUTION SHELL";
+            case UpgradeType.FinisherPayload: return "FINISHER PAYLOAD";
+            case UpgradeType.StabilizedBarrel: return "STABILIZED BARREL";
+            case UpgradeType.SmartTargeting: return "SMART TARGETING";
+            case UpgradeType.RangefinderOptics: return "RANGEFINDER OPTICS";
+            case UpgradeType.DelayedFuse: return "DELAYED FUSE";
+            case UpgradeType.OverloadedChamber: return "OVERLOADED CHAMBER";
+            case UpgradeType.VolatileMunitions: return "VOLATILE MUNITIONS";
+            case UpgradeType.GlassCannonDesign: return "GLASS CANNON DESIGN";
+            case UpgradeType.ApocalypseRound: return "APOCALYPSE ROUND";
             default: return type.ToString().ToUpperInvariant();
         }
     }

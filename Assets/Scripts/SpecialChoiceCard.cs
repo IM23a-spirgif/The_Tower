@@ -6,20 +6,18 @@ public class SpecialChoiceCard : MonoBehaviour
 
     void OnMouseDown()
     {
-        // Identify which UpgradeType this card has
         UpgradeCard card = GetComponent<UpgradeCard>();
-        if (card != null)
+        if (card != null && upgradeManager != null)
         {
-            upgradeManager.UnlockSpecialUpgrade(card.upgradeType);
+            upgradeManager.TryUpgrade(card.upgradeType);
         }
 
-        // Destroy all other special cards
-        SpecialChoiceCard[] allChoices = FindObjectsOfType<SpecialChoiceCard>();
+        SpecialChoiceCard[] allChoices = FindObjectsByType<SpecialChoiceCard>();
         foreach (var choice in allChoices)
         {
             Destroy(choice.gameObject);
         }
 
-        Time.timeScale = 1f; // Resume game
+        Time.timeScale = 1f;
     }
 }

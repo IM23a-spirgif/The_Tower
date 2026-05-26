@@ -5,9 +5,13 @@ public class EnemyHealth : MonoBehaviour
     public int health = 1;
     public GameObject shatterEffectPrefab;
     public EnemySpawner spawner;
+    private int maxHealth = 1;
 
-    public void TakeDamage(int damage)
+    public bool TakeDamage(int damage)
     {
+        if (health <= 0)
+            return false;
+
         health -= damage;
         if (health <= 0)
         {
@@ -15,7 +19,10 @@ public class EnemyHealth : MonoBehaviour
             ShatterEffect();
             NotifyUpgradeManager();
             Destroy(gameObject);
+            return true;
         }
+
+        return false;
     }
 
     public int GetCurrentHealth()
@@ -26,6 +33,12 @@ public class EnemyHealth : MonoBehaviour
     public void SetHealth(int newHealth)
     {
         health = newHealth;
+        maxHealth = Mathf.Max(1, newHealth);
+    }
+
+    public float GetHealthPercent()
+    {
+        return maxHealth <= 0 ? 0f : (float)health / maxHealth;
     }
 
     public void NotifySpawner()
@@ -38,7 +51,7 @@ public class EnemyHealth : MonoBehaviour
     
     void NotifyUpgradeManager()
     {
-        UpgradeManager upgradeManager = FindObjectOfType<UpgradeManager>();
+        UpgradeManager upgradeManager = FindAnyObjectByType<UpgradeManager>();
         if (upgradeManager != null)
         {
             upgradeManager.EnemyKilled();

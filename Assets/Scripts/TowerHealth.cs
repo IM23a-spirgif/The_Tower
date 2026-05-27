@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.Collections;
 
 public class TowerHealth : MonoBehaviour
@@ -15,6 +16,7 @@ public class TowerHealth : MonoBehaviour
     public Color lowHealthColor = new Color(0.95f, 0.22f, 0.18f);
 
     private int currentHealth;
+    private bool isDead;
     private SpriteRenderer spriteRenderer;
 
     void Start()
@@ -32,6 +34,9 @@ public class TowerHealth : MonoBehaviour
 
     public void TakeDamage(int damage)
     {
+        if (isDead)
+            return;
+
         currentHealth -= damage;
         if (currentHealth < 0) currentHealth = 0;
         ShowFloatingDamage(damage);
@@ -39,7 +44,8 @@ public class TowerHealth : MonoBehaviour
 
         if (currentHealth <= 0)
         {
-            Debug.Log("Tower Destroyed! Game Over.");
+            isDead = true;
+            ShowStageLostScreen();
         }
     }
 
@@ -49,8 +55,12 @@ public class TowerHealth : MonoBehaviour
 
         if (healthFill != null)
         {
-            healthFill.fillAmount = healthPercentage;
+            healthFill.fillAmount = 1f;
             healthFill.color = Color.Lerp(lowHealthColor, highHealthColor, healthPercentage);
+
+            RectTransform fillRect = healthFill.rectTransform;
+            fillRect.anchorMax = new Vector2(healthPercentage, fillRect.anchorMax.y);
+            fillRect.offsetMax = Vector2.zero;
         }
 
         if (healthText != null)
@@ -152,6 +162,56 @@ public class TowerHealth : MonoBehaviour
                 healthFill.fillOrigin = (int)Image.OriginHorizontal.Left;
             }
         }
+
+        healthFill.type = Image.Type.Simple;
+    }
+
+    void ShowStageLostScreen()
+    {
+        Time.timeScale = 0f;
+
+        Canvas canvas = FindAnyObjectByType<Canvas>();
+        if (canvas == null)
+            return;
+
+        GameObject overlay = new GameObject("StageLostOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = overlay.GetComponent<RectTransform>();
+        rect.SetParent(canvas.transform, false);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.SetAsLastSibling();
+
+        Image background = overlay.GetComponent<Image>();
+        background.color = new Color(0f, 0f, 0f, 0.8f);
+        background.raycastTarget = true;
+
+        TextMeshProUGUI title = CreateText("Title", rect, "STAGE LOST", 44f);
+        title.alignment = TextAlignmentOptions.Center;
+        PlaceOverlayRect(title.rectTransform, 0f, 64f, 420f, 68f);
+
+        TextMeshProUGUI subtitle = CreateText("Subtitle", rect, "Wave progress and upgrades were lost.", 19f);
+        subtitle.fontStyle = FontStyles.Normal;
+        subtitle.alignment = TextAlignmentOptions.Center;
+        PlaceOverlayRect(subtitle.rectTransform, 0f, 12f, 520f, 42f);
+
+        Button menuButton = CreateOverlayButton("MenuButton", rect, "MAIN MENU", ReturnToMenu);
+        PlaceOverlayRect(menuButton.GetComponent<RectTransform>(), 0f, -64f, 220f, 54f);
+
+        StartCoroutine(ReturnToMenuAfterDelay());
+    }
+
+    IEnumerator ReturnToMenuAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(2.25f);
+        ReturnToMenu();
+    }
+
+    void ReturnToMenu()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("MainMenu");
     }
 
     static RectTransform CreateRect(string name, Transform parent)
@@ -175,6 +235,44 @@ public class TowerHealth : MonoBehaviour
         label.color = new Color(0.92f, 0.95f, 1f, 1f);
         label.raycastTarget = false;
         return label;
+    }
+
+    static Button CreateOverlayButton(string name, Transform parent, string label, UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject obj = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+
+        Image image = obj.GetComponent<Image>();
+        image.color = new Color(0.18f, 0.5f, 0.74f, 1f);
+
+        Button button = obj.GetComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = image.color;
+        colors.highlightedColor = new Color(0.25f, 0.62f, 0.88f, 1f);
+        colors.pressedColor = new Color(0.12f, 0.36f, 0.56f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = new Color(0.16f, 0.18f, 0.22f, 1f);
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        button.onClick.AddListener(onClick);
+
+        TextMeshProUGUI text = CreateText("Text", rect, label, 18f);
+        text.alignment = TextAlignmentOptions.Center;
+        text.rectTransform.anchorMin = Vector2.zero;
+        text.rectTransform.anchorMax = Vector2.one;
+        text.rectTransform.offsetMin = Vector2.zero;
+        text.rectTransform.offsetMax = Vector2.zero;
+        return button;
+    }
+
+    static void PlaceOverlayRect(RectTransform rect, float x, float y, float width, float height)
+    {
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = new Vector2(x, y);
+        rect.sizeDelta = new Vector2(width, height);
     }
 
     void ShowFloatingDamage(int damage)

@@ -143,7 +143,7 @@ public class Bullet : MonoBehaviour
         {
             Collider2D directCollider = directTarget.GetComponent<Collider2D>();
             if (directCollider != null)
-                ApplyExplosionControl(directCollider, center);
+                ApplyExplosionControl(directCollider, center - lastKnownDirection * 0.35f);
 
             int directDamage = CalculateDirectDamage(directTarget);
             directKilled = directTarget.TakeDamage(directDamage);
@@ -228,6 +228,7 @@ public class Bullet : MonoBehaviour
             if (enemyHealth == null)
                 continue;
 
+            CreateFragmentVisual(center, collider.transform.position);
             enemyHealth.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(stats.directDamage * 0.35f)));
             fragmentsLeft--;
         }
@@ -249,7 +250,8 @@ public class Bullet : MonoBehaviour
         effect.Configure(
             Mathf.Max(stats.burningGroundDuration, stats.craterDuration),
             stats.burningGroundDuration > 0f ? Mathf.Max(1, Mathf.RoundToInt(stats.directDamage * 0.18f)) : 0,
-            stats.craterDuration > 0f ? stats.craterSlowMultiplier : 1f);
+            stats.craterDuration > 0f ? stats.craterSlowMultiplier : 1f,
+            stats.splashRadius * 0.72f);
     }
 
     void TriggerChainDetonation(Vector2 center)
@@ -318,5 +320,24 @@ public class Bullet : MonoBehaviour
         }
 
         ring.GetComponent<ShockwaveEffect>().Configure(0.28f);
+    }
+
+    static void CreateFragmentVisual(Vector2 start, Vector2 end)
+    {
+        GameObject fragment = new GameObject("ShrapnelFragment", typeof(LineRenderer), typeof(ShockwaveEffect));
+        fragment.transform.position = start;
+
+        LineRenderer line = fragment.GetComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        line.SetPosition(0, start);
+        line.SetPosition(1, end);
+        line.startWidth = 0.045f;
+        line.endWidth = 0.012f;
+        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.startColor = new Color(0.82f, 0.84f, 0.88f, 0.95f);
+        line.endColor = new Color(0.82f, 0.84f, 0.88f, 0.1f);
+
+        fragment.GetComponent<ShockwaveEffect>().Configure(0.18f);
     }
 }

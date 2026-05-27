@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
@@ -5,6 +6,7 @@ public class EnemyHealth : MonoBehaviour
     public int health = 1;
     public GameObject shatterEffectPrefab;
     public EnemySpawner spawner;
+    public bool isBoss;
     private int maxHealth = 1;
 
     public bool TakeDamage(int damage)
@@ -12,9 +14,16 @@ public class EnemyHealth : MonoBehaviour
         if (health <= 0)
             return false;
 
+        ShowDamageNumber(damage);
         health -= damage;
+        if (isBoss && spawner != null)
+            spawner.UpdateBossHealth(this, health, maxHealth);
+
         if (health <= 0)
         {
+            if (isBoss && spawner != null)
+                spawner.HideBossHealth(this);
+
             NotifySpawner();
             ShatterEffect();
             NotifyUpgradeManager();
@@ -34,6 +43,8 @@ public class EnemyHealth : MonoBehaviour
     {
         health = newHealth;
         maxHealth = Mathf.Max(1, newHealth);
+        if (isBoss && spawner != null)
+            spawner.UpdateBossHealth(this, health, maxHealth);
     }
 
     public float GetHealthPercent()
@@ -45,6 +56,8 @@ public class EnemyHealth : MonoBehaviour
     {
         if (spawner != null)
         {
+            if (isBoss)
+                spawner.HideBossHealth(this);
             spawner.EnemyDefeated();
         }
     }
@@ -64,5 +77,19 @@ public class EnemyHealth : MonoBehaviour
         {
             Instantiate(shatterEffectPrefab, transform.position, Quaternion.identity);
         }
+    }
+
+    void ShowDamageNumber(int damage)
+    {
+        GameObject textObject = new GameObject("EnemyDamageText", typeof(TextMeshPro));
+        textObject.transform.position = transform.position + new Vector3(Random.Range(-0.18f, 0.18f), 0.72f, 0f);
+
+        TextMeshPro text = textObject.GetComponent<TextMeshPro>();
+        text.text = damage.ToString();
+        text.fontSize = 3.1f;
+        text.alignment = TextAlignmentOptions.Center;
+        text.color = Color.white;
+        text.sortingOrder = 50;
+        textObject.AddComponent<FloatingWorldText>().Configure(0.75f, new Vector3(0f, 0.58f, 0f));
     }
 }

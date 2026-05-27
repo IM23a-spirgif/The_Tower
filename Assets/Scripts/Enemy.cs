@@ -7,6 +7,8 @@ public class Enemy : MonoBehaviour
     private EnemyHealth enemyHealth;
     private float slowMultiplier = 1f;
     private float slowEndTime;
+    private Vector2 knockbackVelocity;
+    private float knockbackEndTime;
 
     void Start()
     {
@@ -25,12 +27,21 @@ public class Enemy : MonoBehaviour
         if (Time.time >= slowEndTime)
             slowMultiplier = 1f;
 
+        if (Time.time < knockbackEndTime && knockbackVelocity.sqrMagnitude > 0.01f)
+        {
+            transform.position += (Vector3)(knockbackVelocity * Time.deltaTime);
+            knockbackVelocity = Vector2.Lerp(knockbackVelocity, Vector2.zero, 8f * Time.deltaTime);
+            return;
+        }
+
         transform.position = Vector2.MoveTowards(transform.position, tower.position, speed * slowMultiplier * Time.deltaTime);
         if (Vector2.Distance(transform.position, tower.position) < 0.5f)
         {
             int damageDealt = enemyHealth.GetCurrentHealth();
             tower.GetComponent<TowerHealth>().TakeDamage(damageDealt);
             enemyHealth.NotifySpawner();
+            if (enemyHealth.isBoss && enemyHealth.spawner != null)
+                enemyHealth.spawner.HideBossHealth(enemyHealth);
             Destroy(gameObject);
         }
     }
@@ -47,6 +58,8 @@ public class Enemy : MonoBehaviour
         if (direction.sqrMagnitude <= Mathf.Epsilon)
             return;
 
-        transform.position += (Vector3)(direction * distance);
+        transform.position += (Vector3)(direction * distance * 0.45f);
+        knockbackVelocity = direction * Mathf.Max(2.5f, distance * 12f);
+        knockbackEndTime = Time.time + 0.22f;
     }
 }

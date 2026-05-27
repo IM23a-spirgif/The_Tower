@@ -38,6 +38,8 @@ public class Tower : MonoBehaviour
     private int shotsFired;
     private float cooldownUntil;
     private bool cannonBaselineApplied;
+    private SpriteRenderer rangeCircle;
+    private Camera mainCamera;
     public int extraBullets = 0;  // For "Shoot +1 bullet"
     public bool homingEnabled = false;
     public bool ricochetEnabled = false;
@@ -51,10 +53,15 @@ public class Tower : MonoBehaviour
     void Start()
     {
         ApplyCannonBaseline();
+        EnsureRangeCircle();
+        FitCameraToRange();
     }
 
     void Update()
     {
+        UpdateRangeCircle();
+        FitCameraToRange();
+
         if (Time.time < cooldownUntil)
             return;
 
@@ -63,6 +70,69 @@ public class Tower : MonoBehaviour
             RetargetAndFire();
             nextFireTime = Time.time + fireRate;
         }
+    }
+
+    void EnsureRangeCircle()
+    {
+        if (rangeCircle != null)
+            return;
+
+        GameObject rangeObject = new GameObject("TowerRangeCircle", typeof(SpriteRenderer));
+        rangeObject.transform.position = transform.position;
+        rangeCircle = rangeObject.GetComponent<SpriteRenderer>();
+        rangeCircle.sprite = CreateCircleSprite();
+        rangeCircle.color = new Color(0.72f, 0.74f, 0.78f, 0.16f);
+        rangeCircle.sortingOrder = -10;
+        UpdateRangeCircle();
+    }
+
+    void UpdateRangeCircle()
+    {
+        if (rangeCircle == null)
+            return;
+
+        rangeCircle.transform.position = transform.position;
+        rangeCircle.transform.localScale = Vector3.one * (attackRange * 2.08f);
+    }
+
+    void FitCameraToRange()
+    {
+        if (mainCamera == null)
+            mainCamera = Camera.main;
+        if (mainCamera == null || !mainCamera.orthographic)
+            return;
+
+        float padding = 0.45f;
+        float verticalSize = attackRange + padding;
+        float horizontalSize = (attackRange + padding) / Mathf.Max(0.1f, mainCamera.aspect);
+        mainCamera.orthographicSize = Mathf.Max(5.5f, verticalSize, horizontalSize);
+        Vector3 cameraPosition = transform.position;
+        cameraPosition.z = mainCamera.transform.position.z;
+        mainCamera.transform.position = cameraPosition;
+    }
+
+    static Sprite CreateCircleSprite()
+    {
+        const int size = 128;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        texture.filterMode = FilterMode.Bilinear;
+        Vector2 center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+        float radius = size * 0.47f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float distance = Vector2.Distance(new Vector2(x, y), center);
+                float fillAlpha = distance <= radius ? 0.75f : 0f;
+                float edge = Mathf.Clamp01(1f - Mathf.Abs(distance - radius) / 2.2f);
+                float alpha = Mathf.Max(fillAlpha * 0.18f, edge);
+                texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        texture.Apply();
+        return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
     }
 
     void ApplyCannonBaseline()

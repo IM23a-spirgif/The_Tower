@@ -41,9 +41,12 @@ public class UpgradeManager : MonoBehaviour
     readonly Dictionary<UpgradeCard.UpgradeType, int> upgradeCosts = new Dictionary<UpgradeCard.UpgradeType, int>();
 
     GameObject choiceOverlay;
+    RectTransform currentCardRow;
+    bool currentGuaranteeEpicOrHigher;
     Action currentChoiceComplete;
     int bonusBitsPerKill;
     float hitBitChance;
+    int rerollCost = 1;
 
     static readonly CardDefinition[] CannonCards =
     {
@@ -99,7 +102,7 @@ public class UpgradeManager : MonoBehaviour
         }
     }
 
-    public void ShowWaveUpgradeChoice(Action onChoiceComplete)
+    public void ShowWaveUpgradeChoice(Action onChoiceComplete, bool guaranteeEpicOrHigher = false)
     {
         if (choiceOverlay != null)
             return;
@@ -107,8 +110,10 @@ public class UpgradeManager : MonoBehaviour
         InitializeUpgrades();
         EnsureBitsText();
         currentChoiceComplete = onChoiceComplete;
+        currentGuaranteeEpicOrHigher = guaranteeEpicOrHigher;
+        rerollCost = 1;
 
-        List<UpgradeOffer> offers = BuildOffers();
+        List<UpgradeOffer> offers = BuildOffers(guaranteeEpicOrHigher);
         if (offers.Count == 0)
         {
             CompleteChoice();
@@ -117,23 +122,9 @@ public class UpgradeManager : MonoBehaviour
 
         Time.timeScale = 0f;
         choiceOverlay = CreateOverlay(offers[0].isFree);
-        RectTransform row = CreateRect("UpgradeChoices", choiceOverlay.transform);
-        row.anchorMin = new Vector2(0.5f, 0.5f);
-        row.anchorMax = new Vector2(0.5f, 0.5f);
-        row.pivot = new Vector2(0.5f, 0.5f);
-        row.anchoredPosition = new Vector2(0f, -12f);
-        row.sizeDelta = new Vector2(700f, 212f);
-
-        HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 16f;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
-
-        foreach (UpgradeOffer offer in offers)
-            CreateChoiceCard(offer, row);
+        currentCardRow = CreateChoiceRow(choiceOverlay.transform);
+        PopulateChoiceCards(offers);
+        CreateRerollButton(choiceOverlay.transform);
     }
 
     public void ShowSpecialUpgradeChoice()
@@ -160,7 +151,7 @@ public class UpgradeManager : MonoBehaviour
         }
     }
 
-    List<UpgradeOffer> BuildOffers()
+    List<UpgradeOffer> BuildOffers(bool guaranteeEpicOrHigher)
     {
         List<UpgradeOffer> paidOffers = new List<UpgradeOffer>();
         foreach (CardDefinition card in CannonCards)
@@ -182,7 +173,7 @@ public class UpgradeManager : MonoBehaviour
         }
 
         if (paidOffers.Count > 0)
-            return PickRandomWeighted(paidOffers, 3);
+            return PickRandomWeighted(paidOffers, 3, guaranteeEpicOrHigher);
 
         return new List<UpgradeOffer>
         {
@@ -207,10 +198,27 @@ public class UpgradeManager : MonoBehaviour
         };
     }
 
-    static List<UpgradeOffer> PickRandomWeighted(List<UpgradeOffer> source, int count)
+    static List<UpgradeOffer> PickRandomWeighted(List<UpgradeOffer> source, int count, bool guaranteeEpicOrHigher)
     {
         List<UpgradeOffer> pool = new List<UpgradeOffer>(source);
         List<UpgradeOffer> result = new List<UpgradeOffer>();
+
+        if (guaranteeEpicOrHigher)
+        {
+            List<UpgradeOffer> highRarity = new List<UpgradeOffer>();
+            foreach (UpgradeOffer offer in pool)
+            {
+                if (IsEpicOrHigher(offer.rarity))
+                    highRarity.Add(offer);
+            }
+
+            if (highRarity.Count > 0)
+            {
+                UpgradeOffer guaranteed = highRarity[UnityEngine.Random.Range(0, highRarity.Count)];
+                result.Add(guaranteed);
+                pool.Remove(guaranteed);
+            }
+        }
 
         while (pool.Count > 0 && result.Count < count)
         {
@@ -235,6 +243,11 @@ public class UpgradeManager : MonoBehaviour
         }
 
         return result;
+    }
+
+    static bool IsEpicOrHigher(string rarity)
+    {
+        return rarity == "Epic" || rarity == "Legendary";
     }
 
     static float GetRarityWeight(string rarity)
@@ -265,6 +278,12 @@ public class UpgradeManager : MonoBehaviour
         Image image = cardObject.GetComponent<Image>();
         image.color = offer.isFree ? new Color(0.11f, 0.17f, 0.13f, 0.98f) : GetRarityColor(offer.rarity);
 
+        Outline outline = cardObject.AddComponent<Outline>();
+        outline.effectDistance = new Vector2(3f, -3f);
+        outline.effectColor = GetRarityBorderColor(offer.rarity);
+        RarityPulse pulse = cardObject.AddComponent<RarityPulse>();
+        pulse.Configure(outline, GetRarityBorderColor(offer.rarity));
+
         Button button = cardObject.GetComponent<Button>();
         ColorBlock colors = button.colors;
         colors.normalColor = image.color;
@@ -288,6 +307,77 @@ public class UpgradeManager : MonoBehaviour
         PlaceCardText(footer.rectTransform, 12f, 12f, -12f, 28f, false);
     }
 
+    RectTransform CreateChoiceRow(Transform parent)
+    {
+        RectTransform row = CreateRect("UpgradeChoices", parent);
+        row.anchorMin = new Vector2(0.5f, 0.5f);
+        row.anchorMax = new Vector2(0.5f, 0.5f);
+        row.pivot = new Vector2(0.5f, 0.5f);
+        row.anchoredPosition = new Vector2(0f, -12f);
+        row.sizeDelta = new Vector2(700f, 212f);
+
+        HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+        layout.spacing = 16f;
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+        return row;
+    }
+
+    void PopulateChoiceCards(List<UpgradeOffer> offers)
+    {
+        if (currentCardRow == null)
+            return;
+
+        for (int i = currentCardRow.childCount - 1; i >= 0; i--)
+            Destroy(currentCardRow.GetChild(i).gameObject);
+
+        foreach (UpgradeOffer offer in offers)
+            CreateChoiceCard(offer, currentCardRow);
+    }
+
+    void CreateRerollButton(Transform parent)
+    {
+        Button rerollButton = CreateButton("RerollButton", parent, GetRerollLabel(), RerollOffers);
+        RectTransform rect = rerollButton.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = new Vector2(0f, -156f);
+        rect.sizeDelta = new Vector2(190f, 42f);
+        rerollButton.interactable = bits >= rerollCost;
+    }
+
+    void RerollOffers()
+    {
+        if (bits < rerollCost || currentCardRow == null)
+            return;
+
+        bits -= rerollCost;
+        rerollCost++;
+        UpdateBitsText();
+        PopulateChoiceCards(BuildOffers(currentGuaranteeEpicOrHigher));
+
+        Transform rerollTransform = choiceOverlay != null ? choiceOverlay.transform.Find("RerollButton") : null;
+        if (rerollTransform != null)
+        {
+            TextMeshProUGUI label = rerollTransform.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null)
+                label.text = GetRerollLabel();
+
+            Button button = rerollTransform.GetComponent<Button>();
+            if (button != null)
+                button.interactable = bits >= rerollCost;
+        }
+    }
+
+    string GetRerollLabel()
+    {
+        return $"REROLL ({rerollCost} BIT{(rerollCost == 1 ? "" : "S")})";
+    }
+
     static Color GetRarityColor(string rarity)
     {
         switch (rarity)
@@ -298,6 +388,19 @@ public class UpgradeManager : MonoBehaviour
             case "Epic": return new Color(0.15f, 0.1f, 0.19f, 0.98f);
             case "Legendary": return new Color(0.2f, 0.15f, 0.07f, 0.98f);
             default: return new Color(0.1f, 0.11f, 0.14f, 0.98f);
+        }
+    }
+
+    static Color GetRarityBorderColor(string rarity)
+    {
+        switch (rarity)
+        {
+            case "Common": return new Color(0.62f, 0.64f, 0.66f, 0.85f);
+            case "Uncommon": return new Color(0.22f, 0.9f, 0.34f, 0.9f);
+            case "Rare": return new Color(0.22f, 0.48f, 1f, 0.92f);
+            case "Epic": return new Color(0.68f, 0.25f, 1f, 0.95f);
+            case "Legendary": return new Color(1f, 0.55f, 0.08f, 0.98f);
+            default: return new Color(0.62f, 0.64f, 0.66f, 0.85f);
         }
     }
 
@@ -439,6 +542,8 @@ public class UpgradeManager : MonoBehaviour
             Destroy(choiceOverlay);
 
         choiceOverlay = null;
+        currentCardRow = null;
+        rerollCost = 1;
         Time.timeScale = 1f;
 
         Action callback = currentChoiceComplete;
@@ -586,6 +691,34 @@ public class UpgradeManager : MonoBehaviour
         RectTransform rect = obj.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
         return rect;
+    }
+
+    static Button CreateButton(string name, Transform parent, string label, UnityEngine.Events.UnityAction onClick)
+    {
+        GameObject obj = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+
+        Image image = obj.GetComponent<Image>();
+        image.color = new Color(0.18f, 0.5f, 0.74f, 1f);
+
+        Button button = obj.GetComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = image.color;
+        colors.highlightedColor = new Color(0.25f, 0.62f, 0.88f, 1f);
+        colors.pressedColor = new Color(0.12f, 0.36f, 0.56f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = new Color(0.16f, 0.18f, 0.22f, 0.82f);
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        button.onClick.AddListener(onClick);
+
+        TextMeshProUGUI text = CreateText("Text", rect, label, 16f, FontStyles.Bold, TextAlignmentOptions.Center);
+        text.rectTransform.anchorMin = Vector2.zero;
+        text.rectTransform.anchorMax = Vector2.one;
+        text.rectTransform.offsetMin = Vector2.zero;
+        text.rectTransform.offsetMax = Vector2.zero;
+        return button;
     }
 
     static TextMeshProUGUI CreateText(string name, Transform parent, string text, float fontSize, FontStyles style, TextAlignmentOptions alignment)

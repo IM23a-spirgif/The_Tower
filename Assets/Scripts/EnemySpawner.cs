@@ -21,10 +21,14 @@ public class EnemySpawner : MonoBehaviour
     private int enemiesRemaining = 0;
     private int baseEnemyCount = 5;
     private int enemyCountIncrease = 3;
-    private float enemySpeed = 1.5f;
+    private float enemySpeed = 1.16f;
     private int enemyBaseHP = 1;
     private float maxEnemySpeed = 6f;
     private int maxEnemyHP = 20;
+    private RectTransform bossHealthBar;
+    private Image bossHealthFill;
+    private TextMeshProUGUI bossHealthText;
+    private EnemyHealth activeBoss;
 
     void Start()
     {
@@ -74,9 +78,8 @@ public class EnemySpawner : MonoBehaviour
         Enemy enemyComponent = newEnemy.GetComponent<Enemy>();
         if (enemyComponent != null)
         {
-            // Lower speed scale to 0.1f
-            float waveSpeedBonus = currentWave * 0.1f;
-            float stageSpeedBonus = (currentStage - 1) * 0.08f;
+            float waveSpeedBonus = currentWave * 0.028f;
+            float stageSpeedBonus = (currentStage - 1) * 0.025f;
             enemyComponent.speed = Mathf.Min(maxEnemySpeed, enemySpeed + waveSpeedBonus + stageSpeedBonus);
             if (boss)
                 enemyComponent.speed *= 0.72f;
@@ -85,14 +88,14 @@ public class EnemySpawner : MonoBehaviour
         EnemyHealth enemyHealth = newEnemy.GetComponent<EnemyHealth>();
         if (enemyHealth != null)
         {
-            // For HP: baseHP + wave * 0.3 (round it)
-            int scaledHP = enemyBaseHP + Mathf.RoundToInt(currentWave * 0.3f) + Mathf.RoundToInt((currentStage - 1) * 0.5f);
+            int scaledHP = enemyBaseHP + Mathf.FloorToInt(currentWave * 0.14f) + Mathf.FloorToInt((currentStage - 1) * 0.25f);
             if (boss)
-                scaledHP = Mathf.RoundToInt((scaledHP + currentStage + currentWave) * 4.5f);
+                scaledHP = Mathf.RoundToInt((scaledHP + currentStage + currentWave * 0.48f) * 3.05f);
             scaledHP = Mathf.Min(boss ? maxEnemyHP * 4 : maxEnemyHP, scaledHP);
             enemyHealth.SetHealth(scaledHP);
 
             enemyHealth.spawner = this;
+            enemyHealth.isBoss = boss;
         }
 
         if (boss)
@@ -102,6 +105,44 @@ public class EnemySpawner : MonoBehaviour
             SpriteRenderer spriteRenderer = newEnemy.GetComponent<SpriteRenderer>();
             if (spriteRenderer != null)
                 spriteRenderer.color = new Color(0.95f, 0.32f, 0.28f, 1f);
+
+            activeBoss = enemyHealth;
+            EnsureBossHealthBar();
+            UpdateBossHealth(enemyHealth, enemyHealth.GetCurrentHealth(), enemyHealth.GetCurrentHealth());
+        }
+        else
+        {
+            ApplyEnemyVariant(newEnemy, enemyComponent, enemyHealth);
+        }
+    }
+
+    void ApplyEnemyVariant(GameObject enemyObject, Enemy enemyComponent, EnemyHealth enemyHealth)
+    {
+        if (enemyComponent == null || enemyHealth == null)
+            return;
+
+        float waveFactor = Mathf.Clamp01(currentWave / 15f);
+        float fastChance = Mathf.Lerp(0.08f, 0.24f, waveFactor);
+        float tankChance = Mathf.Lerp(0.05f, 0.2f, waveFactor);
+        float roll = Random.value;
+
+        SpriteRenderer spriteRenderer = enemyObject.GetComponent<SpriteRenderer>();
+        if (roll < fastChance)
+        {
+            enemyObject.name = "Fast Enemy";
+            enemyComponent.speed *= 1.65f;
+            enemyObject.transform.localScale *= 0.82f;
+            if (spriteRenderer != null)
+                spriteRenderer.color = new Color(0.35f, 0.78f, 1f, 1f);
+        }
+        else if (roll < fastChance + tankChance)
+        {
+            enemyObject.name = "Tank Enemy";
+            enemyComponent.speed *= 0.62f;
+            enemyObject.transform.localScale *= 1.32f;
+            enemyHealth.SetHealth(Mathf.Max(2, Mathf.RoundToInt(enemyHealth.GetCurrentHealth() * 2.35f)));
+            if (spriteRenderer != null)
+                spriteRenderer.color = new Color(0.78f, 0.56f, 0.28f, 1f);
         }
     }
 
@@ -137,7 +178,7 @@ public class EnemySpawner : MonoBehaviour
             UpgradeManager upgradeManager = FindAnyObjectByType<UpgradeManager>();
             if (upgradeManager != null)
             {
-                upgradeManager.ShowWaveUpgradeChoice(PrepareNextWave);
+                StartCoroutine(ShowUpgradeChoiceAfterIntermission(upgradeManager, IsBossWave(currentWave)));
                 return;
             }
 
@@ -150,6 +191,15 @@ public class EnemySpawner : MonoBehaviour
         if (startWaveButton != null)
             startWaveButton.gameObject.SetActive(true);
         UpdateWaveText();
+    }
+
+    IEnumerator ShowUpgradeChoiceAfterIntermission(UpgradeManager upgradeManager, bool bossWave)
+    {
+        yield return new WaitForSeconds(1f);
+        if (upgradeManager != null)
+            upgradeManager.ShowWaveUpgradeChoice(PrepareNextWave, bossWave);
+        else
+            PrepareNextWave();
     }
 
     int GetNormalEnemyCount(int wave)
@@ -171,10 +221,45 @@ public class EnemySpawner : MonoBehaviour
     {
         stageComplete = true;
         isSpawning = false;
+        HideBossHealth(activeBoss);
         int nextStage = currentStage + 1;
         PlayerPrefs.SetInt(CurrentStageKey, nextStage);
         PlayerPrefs.Save();
         ShowWinScreen(nextStage);
+    }
+
+    public void UpdateBossHealth(EnemyHealth boss, int currentHealth, int maxHealth)
+    {
+        if (boss == null)
+            return;
+
+        activeBoss = boss;
+        EnsureBossHealthBar();
+        if (bossHealthBar != null)
+            bossHealthBar.gameObject.SetActive(true);
+
+        float percent = maxHealth <= 0 ? 0f : Mathf.Clamp01((float)Mathf.Max(0, currentHealth) / maxHealth);
+        if (bossHealthFill != null)
+        {
+            bossHealthFill.fillAmount = 1f;
+            bossHealthFill.color = Color.Lerp(new Color(0.55f, 0.05f, 0.06f, 1f), new Color(0.95f, 0.2f, 0.18f, 1f), percent);
+            RectTransform fillRect = bossHealthFill.rectTransform;
+            fillRect.anchorMax = new Vector2(percent, fillRect.anchorMax.y);
+            fillRect.offsetMax = Vector2.zero;
+        }
+
+        if (bossHealthText != null)
+            bossHealthText.text = $"BOSS {Mathf.Max(0, currentHealth)}/{maxHealth}";
+    }
+
+    public void HideBossHealth(EnemyHealth boss)
+    {
+        if (boss != null && activeBoss != null && boss != activeBoss)
+            return;
+
+        activeBoss = null;
+        if (bossHealthBar != null)
+            bossHealthBar.gameObject.SetActive(false);
     }
 
     void ShowWinScreen(int nextStage)
@@ -212,6 +297,66 @@ public class EnemySpawner : MonoBehaviour
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene("MainMenu");
+    }
+
+    void EnsureBossHealthBar()
+    {
+        if (bossHealthBar != null)
+            return;
+
+        Canvas canvas = FindAnyObjectByType<Canvas>();
+        if (canvas == null)
+            return;
+
+        Transform existing = canvas.transform.Find("BossHealthBar");
+        bossHealthBar = existing != null ? existing.GetComponent<RectTransform>() : CreateRect("BossHealthBar", canvas.transform);
+        bossHealthBar.anchorMin = new Vector2(0.5f, 1f);
+        bossHealthBar.anchorMax = new Vector2(0.5f, 1f);
+        bossHealthBar.pivot = new Vector2(0.5f, 1f);
+        bossHealthBar.anchoredPosition = new Vector2(0f, -126f);
+        bossHealthBar.sizeDelta = new Vector2(360f, 48f);
+        bossHealthBar.gameObject.SetActive(false);
+
+        Image panel = bossHealthBar.GetComponent<Image>();
+        if (panel == null)
+            panel = bossHealthBar.gameObject.AddComponent<Image>();
+        panel.color = new Color(0.05f, 0.03f, 0.035f, 0.88f);
+
+        RectTransform track = bossHealthBar.Find("Track")?.GetComponent<RectTransform>();
+        if (track == null)
+        {
+            track = CreateRect("Track", bossHealthBar);
+            track.anchorMin = new Vector2(0f, 0f);
+            track.anchorMax = new Vector2(1f, 0f);
+            track.pivot = new Vector2(0.5f, 0f);
+            track.anchoredPosition = new Vector2(0f, 8f);
+            track.sizeDelta = new Vector2(-24f, 16f);
+            Image trackImage = track.gameObject.AddComponent<Image>();
+            trackImage.color = new Color(0.16f, 0.08f, 0.08f, 1f);
+        }
+
+        bossHealthFill = track.Find("Fill")?.GetComponent<Image>();
+        if (bossHealthFill == null)
+        {
+            RectTransform fill = CreateRect("Fill", track);
+            fill.anchorMin = Vector2.zero;
+            fill.anchorMax = Vector2.one;
+            fill.offsetMin = Vector2.zero;
+            fill.offsetMax = Vector2.zero;
+            bossHealthFill = fill.gameObject.AddComponent<Image>();
+        }
+        bossHealthFill.type = Image.Type.Simple;
+
+        bossHealthText = bossHealthBar.Find("Text")?.GetComponent<TextMeshProUGUI>();
+        if (bossHealthText == null)
+        {
+            bossHealthText = CreateOverlayText("Text", bossHealthBar, "BOSS", 15f, FontStyles.Bold);
+            bossHealthText.rectTransform.anchorMin = new Vector2(0f, 1f);
+            bossHealthText.rectTransform.anchorMax = new Vector2(1f, 1f);
+            bossHealthText.rectTransform.pivot = new Vector2(0.5f, 1f);
+            bossHealthText.rectTransform.anchoredPosition = new Vector2(0f, -4f);
+            bossHealthText.rectTransform.sizeDelta = new Vector2(-16f, 20f);
+        }
     }
 
     void EnsureWaveText()
@@ -343,6 +488,14 @@ public class EnemySpawner : MonoBehaviour
         text.rectTransform.offsetMin = Vector2.zero;
         text.rectTransform.offsetMax = Vector2.zero;
         return button;
+    }
+
+    static RectTransform CreateRect(string name, Transform parent)
+    {
+        GameObject obj = new GameObject(name, typeof(RectTransform));
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        return rect;
     }
 
     static void PlaceOverlayRect(RectTransform rect, float x, float y, float width, float height)

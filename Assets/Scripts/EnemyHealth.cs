@@ -1,4 +1,5 @@
 using TMPro;
+using System.Collections;
 using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
@@ -8,14 +9,18 @@ public class EnemyHealth : MonoBehaviour
     public EnemySpawner spawner;
     public bool isBoss;
     private int maxHealth = 1;
+    private float ionizedDamageMultiplier = 1f;
+    private float ionizedEndTime;
+    private Coroutine residualCurrentRoutine;
 
     public bool TakeDamage(int damage)
     {
         if (health <= 0)
             return false;
 
-        ShowDamageNumber(damage);
-        health -= damage;
+        int finalDamage = Mathf.Max(1, Mathf.RoundToInt(damage * GetDamageTakenMultiplier()));
+        ShowDamageNumber(finalDamage);
+        health -= finalDamage;
         if (isBoss && spawner != null)
             spawner.UpdateBossHealth(this, health, maxHealth);
 
@@ -50,6 +55,41 @@ public class EnemyHealth : MonoBehaviour
     public float GetHealthPercent()
     {
         return maxHealth <= 0 ? 0f : (float)health / maxHealth;
+    }
+
+    public float GetDamageTakenMultiplier()
+    {
+        if (Time.time >= ionizedEndTime)
+            ionizedDamageMultiplier = 1f;
+
+        return ionizedDamageMultiplier;
+    }
+
+    public void ApplyIonized(float extraDamageMultiplier, float duration)
+    {
+        ionizedDamageMultiplier = Mathf.Max(ionizedDamageMultiplier, 1f + extraDamageMultiplier);
+        ionizedEndTime = Mathf.Max(ionizedEndTime, Time.time + duration);
+    }
+
+    public void ApplyResidualCurrent(int damagePerTick, float duration, float tickInterval)
+    {
+        if (residualCurrentRoutine != null)
+            StopCoroutine(residualCurrentRoutine);
+
+        residualCurrentRoutine = StartCoroutine(ResidualCurrent(damagePerTick, duration, tickInterval));
+    }
+
+    IEnumerator ResidualCurrent(int damagePerTick, float duration, float tickInterval)
+    {
+        float endTime = Time.time + duration;
+        while (Time.time < endTime && health > 0)
+        {
+            yield return new WaitForSeconds(tickInterval);
+            if (health > 0)
+                TakeDamage(damagePerTick);
+        }
+
+        residualCurrentRoutine = null;
     }
 
     public void NotifySpawner()

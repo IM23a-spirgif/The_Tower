@@ -31,6 +31,31 @@ public class UpgradeCard : MonoBehaviour
         VolatileMunitions = 22,
         GlassCannonDesign = 23,
         ApocalypseRound = 24,
+        HighVoltageCoils = 25,
+        RapidCapacitors = 26,
+        ConductiveReach = 27,
+        ArcStability = 28,
+        OverclockedWiring = 29,
+        ExtendedArc = 30,
+        ForkedLightning = 31,
+        ArcBounce = 32,
+        StormCurrent = 33,
+        Superconductor = 34,
+        StaticCharge = 35,
+        ParalysisField = 36,
+        IonizedArmor = 37,
+        ResidualCurrent = 38,
+        EmpSurge = 39,
+        CapacitorBanks = 40,
+        EnergyOverflow = 41,
+        FeedbackLoop = 42,
+        UnstablePlasma = 43,
+        TeslaField = 44,
+        MagneticStorm = 45,
+        VoltageCollapse = 46,
+        MeltdownCore = 47,
+        InfiniteArc = 48,
+        StormbringerProtocol = 49,
     }
 
 
@@ -123,6 +148,31 @@ public class UpgradeCard : MonoBehaviour
             case UpgradeType.VolatileMunitions: return "VOLATILE MUNITIONS";
             case UpgradeType.GlassCannonDesign: return "GLASS CANNON DESIGN";
             case UpgradeType.ApocalypseRound: return "APOCALYPSE ROUND";
+            case UpgradeType.HighVoltageCoils: return "HIGH VOLTAGE COILS";
+            case UpgradeType.RapidCapacitors: return "RAPID CAPACITORS";
+            case UpgradeType.ConductiveReach: return "CONDUCTIVE REACH";
+            case UpgradeType.ArcStability: return "ARC STABILITY";
+            case UpgradeType.OverclockedWiring: return "OVERCLOCKED WIRING";
+            case UpgradeType.ExtendedArc: return "EXTENDED ARC";
+            case UpgradeType.ForkedLightning: return "FORKED LIGHTNING";
+            case UpgradeType.ArcBounce: return "ARC BOUNCE";
+            case UpgradeType.StormCurrent: return "STORM CURRENT";
+            case UpgradeType.Superconductor: return "SUPERCONDUCTOR";
+            case UpgradeType.StaticCharge: return "STATIC CHARGE";
+            case UpgradeType.ParalysisField: return "PARALYSIS FIELD";
+            case UpgradeType.IonizedArmor: return "IONIZED ARMOR";
+            case UpgradeType.ResidualCurrent: return "RESIDUAL CURRENT";
+            case UpgradeType.EmpSurge: return "EMP SURGE";
+            case UpgradeType.CapacitorBanks: return "CAPACITOR BANKS";
+            case UpgradeType.EnergyOverflow: return "ENERGY OVERFLOW";
+            case UpgradeType.FeedbackLoop: return "FEEDBACK LOOP";
+            case UpgradeType.UnstablePlasma: return "UNSTABLE PLASMA";
+            case UpgradeType.TeslaField: return "TESLA FIELD";
+            case UpgradeType.MagneticStorm: return "MAGNETIC STORM";
+            case UpgradeType.VoltageCollapse: return "VOLTAGE COLLAPSE";
+            case UpgradeType.MeltdownCore: return "MELTDOWN CORE";
+            case UpgradeType.InfiniteArc: return "INFINITE ARC";
+            case UpgradeType.StormbringerProtocol: return "STORMBRINGER PROTOCOL";
             default: return type.ToString().ToUpperInvariant();
         }
     }

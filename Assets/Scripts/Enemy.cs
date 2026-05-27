@@ -7,6 +7,7 @@ public class Enemy : MonoBehaviour
     private EnemyHealth enemyHealth;
     private float slowMultiplier = 1f;
     private float slowEndTime;
+    private float stunEndTime;
     private Vector2 knockbackVelocity;
     private float knockbackEndTime;
 
@@ -26,6 +27,8 @@ public class Enemy : MonoBehaviour
         if (tower == null || enemyHealth == null) return;
         if (Time.time >= slowEndTime)
             slowMultiplier = 1f;
+        if (Time.time < stunEndTime)
+            return;
 
         if (Time.time < knockbackEndTime && knockbackVelocity.sqrMagnitude > 0.01f)
         {
@@ -50,6 +53,20 @@ public class Enemy : MonoBehaviour
     {
         slowMultiplier = Mathf.Min(slowMultiplier, Mathf.Clamp(multiplier, 0.1f, 1f));
         slowEndTime = Mathf.Max(slowEndTime, Time.time + duration);
+    }
+
+    public void ApplyStun(float duration)
+    {
+        stunEndTime = Mathf.Max(stunEndTime, Time.time + duration);
+    }
+
+    public void PullToward(Vector2 point, float distance)
+    {
+        Vector2 direction = (point - (Vector2)transform.position).normalized;
+        if (direction.sqrMagnitude <= Mathf.Epsilon)
+            return;
+
+        transform.position += (Vector3)(direction * distance);
     }
 
     public void ApplyKnockback(Vector2 source, float distance)

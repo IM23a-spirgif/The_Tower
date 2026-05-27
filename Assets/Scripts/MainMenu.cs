@@ -7,7 +7,9 @@ public class MainMenu : MonoBehaviour
 {
     const string CurrentStageKey = "CurrentStage";
     const string SelectedTowerKey = "SelectedTower";
+    const string TeslaTowerUnlockedKey = "TeslaTowerUnlocked";
     const string CannonTowerId = "cannon";
+    const string TeslaTowerId = "tesla";
 
     Canvas canvas;
     RectTransform contentRoot;
@@ -21,6 +23,10 @@ public class MainMenu : MonoBehaviour
             PlayerPrefs.SetInt(CurrentStageKey, 1);
         if (!PlayerPrefs.HasKey(SelectedTowerKey))
             PlayerPrefs.SetString(SelectedTowerKey, CannonTowerId);
+        if (PlayerPrefs.GetInt(CurrentStageKey, 1) > 1)
+            PlayerPrefs.SetInt(TeslaTowerUnlockedKey, 1);
+        if (!IsTowerUnlocked(PlayerPrefs.GetString(SelectedTowerKey, CannonTowerId)))
+            PlayerPrefs.SetString(SelectedTowerKey, CannonTowerId);
 
         BuildMenu();
         ShowHome();
@@ -28,7 +34,8 @@ public class MainMenu : MonoBehaviour
 
     public void StartGame()
     {
-        PlayerPrefs.SetString(SelectedTowerKey, CannonTowerId);
+        if (!IsTowerUnlocked(PlayerPrefs.GetString(SelectedTowerKey, CannonTowerId)))
+            PlayerPrefs.SetString(SelectedTowerKey, CannonTowerId);
         PlayerPrefs.Save();
         SceneManager.LoadScene("SampleScene");
     }
@@ -146,24 +153,44 @@ public class MainMenu : MonoBehaviour
         TextMeshProUGUI heading = CreateText("Heading", contentRoot, "TOWERS", 26f, FontStyles.Bold, TextAlignmentOptions.Center);
         PlaceTop(heading.rectTransform, -34f, 36f);
 
-        RectTransform card = CreatePanel("CannonTowerCard", contentRoot, new Color(0.105f, 0.12f, 0.15f, 1f));
-        PlaceCenter(card, 0f, -10f, 420f, 198f);
+        CreateTowerCard("CannonTowerCard", "CANNON TOWER", "Explosive shells with splash and heavy upgrade scaling.", CannonTowerId, true, -216f);
+        CreateTowerCard("TeslaTowerCard", "TESLA TOWER", "Rapid arcs with longer range and steadier damage.", TeslaTowerId, IsTowerUnlocked(TeslaTowerId), 216f);
+    }
 
-        TextMeshProUGUI name = CreateText("Name", card, "CANNON TOWER", 24f, FontStyles.Bold, TextAlignmentOptions.Center);
+    void CreateTowerCard(string cardName, string towerName, string descriptionText, string towerId, bool unlocked, float x)
+    {
+        string selectedTower = PlayerPrefs.GetString(SelectedTowerKey, CannonTowerId);
+        bool selected = selectedTower == towerId && unlocked;
+        Color cardColor = unlocked ? new Color(0.105f, 0.12f, 0.15f, 1f) : new Color(0.078f, 0.084f, 0.096f, 1f);
+
+        RectTransform card = CreatePanel(cardName, contentRoot, cardColor);
+        PlaceCenter(card, x, -10f, 196f, 198f);
+
+        TextMeshProUGUI name = CreateText("Name", card, towerName, 20f, FontStyles.Bold, TextAlignmentOptions.Center);
         PlaceTop(name.rectTransform, -18f, 34f);
+        name.color = unlocked ? new Color(0.91f, 0.94f, 0.98f, 1f) : new Color(0.58f, 0.62f, 0.68f, 1f);
 
-        TextMeshProUGUI description = CreateText("Description", card, "Single-target bullets with Fire Rate, Range and Damage upgrades.", 16f, FontStyles.Normal, TextAlignmentOptions.Center);
-        PlaceCenter(description.rectTransform, 0f, 18f, 320f, 54f);
+        TextMeshProUGUI description = CreateText("Description", card, unlocked ? descriptionText : "Locked until you beat stage 1.", 14f, FontStyles.Normal, TextAlignmentOptions.Center);
+        PlaceCenter(description.rectTransform, 0f, 18f, 160f, 64f);
+        description.color = unlocked ? new Color(0.78f, 0.83f, 0.9f, 1f) : new Color(0.5f, 0.54f, 0.6f, 1f);
 
-        Button equipButton = CreateButton("EquipButton", card, "EQUIPPED", () =>
+        Button equipButton = CreateButton("EquipButton", card, selected ? "EQUIPPED" : unlocked ? "EQUIP" : "LOCKED", () =>
         {
-            PlayerPrefs.SetString(SelectedTowerKey, CannonTowerId);
+            if (!unlocked)
+                return;
+
+            PlayerPrefs.SetString(SelectedTowerKey, towerId);
             PlayerPrefs.Save();
             ShowTowers();
         });
         RectTransform equipRect = equipButton.GetComponent<RectTransform>();
-        PlaceCenter(equipRect, 0f, -54f, 170f, 42f);
-        equipButton.interactable = false;
+        PlaceCenter(equipRect, 0f, -54f, 144f, 42f);
+        equipButton.interactable = unlocked && !selected;
+    }
+
+    static bool IsTowerUnlocked(string towerId)
+    {
+        return towerId == CannonTowerId || (towerId == TeslaTowerId && PlayerPrefs.GetInt(TeslaTowerUnlockedKey, 0) == 1);
     }
 
     void SetTabState(bool homeActive)

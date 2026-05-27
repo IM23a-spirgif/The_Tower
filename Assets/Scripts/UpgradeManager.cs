@@ -6,6 +6,9 @@ using UnityEngine.UI;
 
 public class UpgradeManager : MonoBehaviour
 {
+    const string SelectedTowerKey = "SelectedTower";
+    const string TeslaTowerId = "tesla";
+
     enum FreeUpgradeType
     {
         KillBonus,
@@ -77,6 +80,35 @@ public class UpgradeManager : MonoBehaviour
         Card(UpgradeCard.UpgradeType.ApocalypseRound, "APOCALYPSE ROUND", "Every 20th shot fires an enormous extreme-damage shell.", "Legendary", 1, 14),
     };
 
+    static readonly CardDefinition[] TeslaCards =
+    {
+        Card(UpgradeCard.UpgradeType.HighVoltageCoils, "HIGH VOLTAGE COILS", "Lightning Damage +12%.", "Common", 8, 3),
+        Card(UpgradeCard.UpgradeType.RapidCapacitors, "RAPID CAPACITORS", "Attack Speed +10%.", "Common", 8, 3),
+        Card(UpgradeCard.UpgradeType.ConductiveReach, "CONDUCTIVE REACH", "Tower Range +15%.", "Common", 5, 3),
+        Card(UpgradeCard.UpgradeType.ArcStability, "ARC STABILITY", "Chain damage falloff reduced.", "Uncommon", 5, 5),
+        Card(UpgradeCard.UpgradeType.OverclockedWiring, "OVERCLOCKED WIRING", "Attack Speed +18%, Range -8%.", "Uncommon", 4, 5),
+        Card(UpgradeCard.UpgradeType.ExtendedArc, "EXTENDED ARC", "Lightning chains to +1 additional enemy.", "Rare", 6, 7),
+        Card(UpgradeCard.UpgradeType.ForkedLightning, "FORKED LIGHTNING", "Each chain has a 20% chance to split into another nearby enemy.", "Rare", 4, 7),
+        Card(UpgradeCard.UpgradeType.ArcBounce, "ARC BOUNCE", "Chains can bounce back to previously hit enemies for reduced damage.", "Epic", 2, 10),
+        Card(UpgradeCard.UpgradeType.StormCurrent, "STORM CURRENT", "Chain distance increased significantly.", "Uncommon", 4, 5),
+        Card(UpgradeCard.UpgradeType.Superconductor, "SUPERCONDUCTOR", "If only one enemy is hit, damage massively increases.", "Epic", 3, 10),
+        Card(UpgradeCard.UpgradeType.StaticCharge, "STATIC CHARGE", "Hit enemies are slowed by 10%.", "Common", 5, 3),
+        Card(UpgradeCard.UpgradeType.ParalysisField, "PARALYSIS FIELD", "Repeated hits briefly stun enemies.", "Epic", 2, 10),
+        Card(UpgradeCard.UpgradeType.IonizedArmor, "IONIZED ARMOR", "Shocked enemies take increased damage from all sources.", "Rare", 4, 7),
+        Card(UpgradeCard.UpgradeType.ResidualCurrent, "RESIDUAL CURRENT", "Enemies continue taking electrical damage over time after being shocked.", "Rare", 5, 7),
+        Card(UpgradeCard.UpgradeType.EmpSurge, "EMP SURGE", "Every 20 attacks emits a large pulse damaging all nearby enemies.", "Epic", 3, 10),
+        Card(UpgradeCard.UpgradeType.CapacitorBanks, "CAPACITOR BANKS", "Consecutive attacks without interruption gain stacking damage.", "Rare", 4, 7),
+        Card(UpgradeCard.UpgradeType.EnergyOverflow, "ENERGY OVERFLOW", "Excess damage from kills transfers into the next chain.", "Rare", 3, 7),
+        Card(UpgradeCard.UpgradeType.FeedbackLoop, "FEEDBACK LOOP", "Each chained enemy slightly reduces reload time for the next shot.", "Rare", 5, 7),
+        Card(UpgradeCard.UpgradeType.UnstablePlasma, "UNSTABLE PLASMA", "Critical strikes create mini lightning explosions.", "Epic", 3, 10),
+        Card(UpgradeCard.UpgradeType.TeslaField, "TESLA FIELD", "Creates a passive electric field around the tower damaging nearby enemies.", "Epic", 3, 10),
+        Card(UpgradeCard.UpgradeType.MagneticStorm, "MAGNETIC STORM", "Shocked enemies slightly pull nearby enemies toward them.", "Epic", 2, 10),
+        Card(UpgradeCard.UpgradeType.VoltageCollapse, "VOLTAGE COLLAPSE", "Enemies killed by lightning explode in a small electrical burst.", "Rare", 4, 7),
+        Card(UpgradeCard.UpgradeType.MeltdownCore, "MELTDOWN CORE", "Massive damage increase, but occasional self-stun after firing.", "Legendary", 2, 14),
+        Card(UpgradeCard.UpgradeType.InfiniteArc, "INFINITE ARC", "Chains no longer have a maximum target count while damage keeps decaying.", "Legendary", 1, 14),
+        Card(UpgradeCard.UpgradeType.StormbringerProtocol, "STORMBRINGER PROTOCOL", "During high enemy density, attack speed ramps up dramatically.", "Legendary", 1, 14),
+    };
+
     void Start()
     {
         InitializeUpgrades();
@@ -142,7 +174,7 @@ public class UpgradeManager : MonoBehaviour
 
     void InitializeUpgrades()
     {
-        foreach (CardDefinition card in CannonCards)
+        foreach (CardDefinition card in GetActiveCards())
         {
             if (!upgradeLevels.ContainsKey(card.type))
                 upgradeLevels[card.type] = 0;
@@ -154,7 +186,7 @@ public class UpgradeManager : MonoBehaviour
     List<UpgradeOffer> BuildOffers(bool guaranteeEpicOrHigher)
     {
         List<UpgradeOffer> paidOffers = new List<UpgradeOffer>();
-        foreach (CardDefinition card in CannonCards)
+        foreach (CardDefinition card in GetActiveCards())
         {
             int cost = upgradeCosts[card.type];
             if (bits < cost || IsAtMaxStacks(card.type))
@@ -518,6 +550,86 @@ public class UpgradeManager : MonoBehaviour
             case UpgradeCard.UpgradeType.ApocalypseRound:
                 tower.apocalypseRound = true;
                 break;
+            case UpgradeCard.UpgradeType.HighVoltageCoils:
+                tower.teslaDamageMultiplier *= 1.12f;
+                break;
+            case UpgradeCard.UpgradeType.RapidCapacitors:
+                tower.fireRate *= 0.9f;
+                break;
+            case UpgradeCard.UpgradeType.ConductiveReach:
+                tower.attackRange *= 1.15f;
+                break;
+            case UpgradeCard.UpgradeType.ArcStability:
+                tower.teslaChainFalloff = Mathf.Min(0.94f, tower.teslaChainFalloff + 0.045f);
+                break;
+            case UpgradeCard.UpgradeType.OverclockedWiring:
+                tower.fireRate *= 0.82f;
+                tower.attackRange *= 0.92f;
+                break;
+            case UpgradeCard.UpgradeType.ExtendedArc:
+                tower.teslaChainCount++;
+                break;
+            case UpgradeCard.UpgradeType.ForkedLightning:
+                tower.teslaForkChance += 0.2f;
+                break;
+            case UpgradeCard.UpgradeType.ArcBounce:
+                tower.teslaArcBounce = true;
+                tower.teslaChainFalloff = Mathf.Min(0.96f, tower.teslaChainFalloff + 0.04f);
+                break;
+            case UpgradeCard.UpgradeType.StormCurrent:
+                tower.teslaChainRange *= 1.28f;
+                break;
+            case UpgradeCard.UpgradeType.Superconductor:
+                tower.teslaSuperconductorStacks++;
+                break;
+            case UpgradeCard.UpgradeType.StaticCharge:
+                tower.teslaSlowMultiplier = Mathf.Min(tower.teslaSlowMultiplier, Mathf.Max(0.45f, 0.9f - 0.06f * upgradeLevels[type]));
+                tower.teslaSlowDuration = Mathf.Max(tower.teslaSlowDuration, 1.5f);
+                break;
+            case UpgradeCard.UpgradeType.ParalysisField:
+                tower.teslaParalysisStacks++;
+                break;
+            case UpgradeCard.UpgradeType.IonizedArmor:
+                tower.teslaIonizedBonus += 0.12f;
+                break;
+            case UpgradeCard.UpgradeType.ResidualCurrent:
+                tower.teslaResidualDamageMultiplier += 0.14f;
+                break;
+            case UpgradeCard.UpgradeType.EmpSurge:
+                tower.teslaEmpSurgeStacks++;
+                break;
+            case UpgradeCard.UpgradeType.CapacitorBanks:
+                tower.teslaCapacitorBankStacks++;
+                break;
+            case UpgradeCard.UpgradeType.EnergyOverflow:
+                tower.teslaEnergyOverflow = true;
+                tower.teslaDamageMultiplier *= 1.06f;
+                break;
+            case UpgradeCard.UpgradeType.FeedbackLoop:
+                tower.teslaFeedbackLoopMultiplier += 0.025f;
+                break;
+            case UpgradeCard.UpgradeType.UnstablePlasma:
+                tower.teslaCriticalExplosionChance += 0.12f;
+                break;
+            case UpgradeCard.UpgradeType.TeslaField:
+                tower.teslaFieldStacks++;
+                break;
+            case UpgradeCard.UpgradeType.MagneticStorm:
+                tower.teslaMagneticPull += 0.08f;
+                break;
+            case UpgradeCard.UpgradeType.VoltageCollapse:
+                tower.teslaVoltageCollapseMultiplier += 0.22f;
+                break;
+            case UpgradeCard.UpgradeType.MeltdownCore:
+                tower.teslaMeltdownStacks++;
+                tower.teslaDamageMultiplier *= 1.55f;
+                break;
+            case UpgradeCard.UpgradeType.InfiniteArc:
+                tower.teslaInfiniteArc = true;
+                break;
+            case UpgradeCard.UpgradeType.StormbringerProtocol:
+                tower.teslaStormbringerProtocol = true;
+                break;
         }
     }
 
@@ -640,7 +752,7 @@ public class UpgradeManager : MonoBehaviour
         image.color = new Color(0f, 0f, 0f, 0.74f);
         image.raycastTarget = true;
 
-        string titleText = freeFallback ? "LOW BITS: CHOOSE SUPPLY BOOST" : "CHOOSE CANNON UPGRADE";
+        string titleText = freeFallback ? "LOW BITS: CHOOSE SUPPLY BOOST" : IsTeslaTowerSelected() ? "CHOOSE TESLA UPGRADE" : "CHOOSE CANNON UPGRADE";
         TextMeshProUGUI title = CreateText("Title", rect, titleText, 28f, FontStyles.Bold, TextAlignmentOptions.Center);
         RectTransform titleRect = title.rectTransform;
         titleRect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -682,7 +794,23 @@ public class UpgradeManager : MonoBehaviour
                 return card;
         }
 
+        foreach (CardDefinition card in TeslaCards)
+        {
+            if (card.type == type)
+                return card;
+        }
+
         return CannonCards[0];
+    }
+
+    static CardDefinition[] GetActiveCards()
+    {
+        return IsTeslaTowerSelected() ? TeslaCards : CannonCards;
+    }
+
+    static bool IsTeslaTowerSelected()
+    {
+        return PlayerPrefs.GetString(SelectedTowerKey, "cannon") == TeslaTowerId;
     }
 
     static RectTransform CreateRect(string name, Transform parent)

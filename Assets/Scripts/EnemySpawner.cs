@@ -8,6 +8,7 @@ public class EnemySpawner : MonoBehaviour
 {
     const int WavesPerStage = 15;
     const string CurrentStageKey = "CurrentStage";
+    const string TeslaTowerUnlockedKey = "TeslaTowerUnlocked";
 
     public GameObject enemyPrefab;
     public Transform tower;
@@ -223,9 +224,12 @@ public class EnemySpawner : MonoBehaviour
         isSpawning = false;
         HideBossHealth(activeBoss);
         int nextStage = currentStage + 1;
+        bool unlockedTeslaTower = currentStage == 1 && PlayerPrefs.GetInt(TeslaTowerUnlockedKey, 0) == 0;
         PlayerPrefs.SetInt(CurrentStageKey, nextStage);
+        if (unlockedTeslaTower)
+            PlayerPrefs.SetInt(TeslaTowerUnlockedKey, 1);
         PlayerPrefs.Save();
-        ShowWinScreen(nextStage);
+        ShowWinScreen(nextStage, unlockedTeslaTower);
     }
 
     public void UpdateBossHealth(EnemyHealth boss, int currentHealth, int maxHealth)
@@ -262,7 +266,7 @@ public class EnemySpawner : MonoBehaviour
             bossHealthBar.gameObject.SetActive(false);
     }
 
-    void ShowWinScreen(int nextStage)
+    void ShowWinScreen(int nextStage, bool unlockedTeslaTower)
     {
         Time.timeScale = 0f;
 
@@ -287,10 +291,17 @@ public class EnemySpawner : MonoBehaviour
         PlaceOverlayRect(title.rectTransform, 0f, 76f, 420f, 70f);
 
         TextMeshProUGUI subtitle = CreateOverlayText("Subtitle", rect, $"Stage {currentStage} complete. Stage {nextStage} unlocked.", 20f, FontStyles.Normal);
-        PlaceOverlayRect(subtitle.rectTransform, 0f, 22f, 520f, 42f);
+        PlaceOverlayRect(subtitle.rectTransform, 0f, unlockedTeslaTower ? 30f : 22f, 520f, 42f);
+
+        if (unlockedTeslaTower)
+        {
+            TextMeshProUGUI unlockText = CreateOverlayText("UnlockText", rect, "You unlocked: Tesla Tower", 22f, FontStyles.Bold);
+            unlockText.color = new Color(0.52f, 0.86f, 1f, 1f);
+            PlaceOverlayRect(unlockText.rectTransform, 0f, -14f, 520f, 42f);
+        }
 
         Button menuButton = CreateOverlayButton("MenuButton", rect, "MAIN MENU", ReturnToMenu);
-        PlaceOverlayRect(menuButton.GetComponent<RectTransform>(), 0f, -58f, 220f, 54f);
+        PlaceOverlayRect(menuButton.GetComponent<RectTransform>(), 0f, unlockedTeslaTower ? -86f : -58f, 220f, 54f);
     }
 
     void ReturnToMenu()

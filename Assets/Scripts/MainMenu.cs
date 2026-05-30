@@ -76,19 +76,34 @@ public class MainMenu : MonoBehaviour
         for (int i = canvas.transform.childCount - 1; i >= 0; i--)
             Destroy(canvas.transform.GetChild(i).gameObject);
 
-        RectTransform root = CreatePanel("MainMenuRoot", canvas.transform, new Color(0.035f, 0.04f, 0.052f, 1f));
+        UITheme.StyleCanvas(canvas, new Vector2(900f, 600f));
+        RectTransform root = CreatePanel("MainMenuRoot", canvas.transform, UITheme.Background);
         root.anchorMin = Vector2.zero;
         root.anchorMax = Vector2.one;
         root.offsetMin = Vector2.zero;
         root.offsetMax = Vector2.zero;
 
-        TextMeshProUGUI title = CreateText("Title", root, "THE TOWER", 42f, FontStyles.Bold, TextAlignmentOptions.Center);
+        UITheme.AddAccent(root, "TopGlow", new Color(0.12f, 0.54f, 0.76f, 0.9f), new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -4f), Vector2.zero);
+        UITheme.AddAccent(root, "LeftRail", new Color(0.08f, 0.3f, 0.44f, 0.55f), Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(4f, 0f));
+        UITheme.AddAccent(root, "RightRail", new Color(0.08f, 0.3f, 0.44f, 0.55f), new Vector2(1f, 0f), Vector2.one, new Vector2(-4f, 0f), Vector2.zero);
+
+        TextMeshProUGUI title = CreateText("Title", root, "THE TOWER", 46f, FontStyles.Bold, TextAlignmentOptions.Center);
         RectTransform titleRect = title.rectTransform;
         titleRect.anchorMin = new Vector2(0f, 1f);
         titleRect.anchorMax = new Vector2(1f, 1f);
         titleRect.pivot = new Vector2(0.5f, 1f);
         titleRect.anchoredPosition = new Vector2(0f, -30f);
         titleRect.sizeDelta = new Vector2(0f, 58f);
+        UITheme.StyleText(title, UITheme.Text, true);
+
+        TextMeshProUGUI subtitle = CreateText("Subtitle", root, "Best Tower Defense Game ever 100%", 13f, FontStyles.Bold, TextAlignmentOptions.Center);
+        subtitle.color = UITheme.Cyan;
+        RectTransform subtitleRect = subtitle.rectTransform;
+        subtitleRect.anchorMin = new Vector2(0f, 1f);
+        subtitleRect.anchorMax = new Vector2(1f, 1f);
+        subtitleRect.pivot = new Vector2(0.5f, 1f);
+        subtitleRect.anchoredPosition = new Vector2(0f, -82f);
+        subtitleRect.sizeDelta = new Vector2(0f, 24f);
 
         RectTransform nav = CreateRect("Nav", root);
         nav.anchorMin = new Vector2(0f, 0f);
@@ -109,12 +124,13 @@ public class MainMenu : MonoBehaviour
         Button towersButton = CreateButton("TowersButton", nav, "TOWERS", () => ShowTowers());
         towersTabLabel = towersButton.GetComponentInChildren<TextMeshProUGUI>();
 
-        contentRoot = CreatePanel("Content", root, new Color(0.075f, 0.084f, 0.105f, 0.98f));
+        contentRoot = CreatePanel("Content", root, UITheme.Panel);
         contentRoot.anchorMin = new Vector2(0.5f, 0.5f);
         contentRoot.anchorMax = new Vector2(0.5f, 0.5f);
         contentRoot.pivot = new Vector2(0.5f, 0.5f);
         contentRoot.anchoredPosition = new Vector2(0f, -12f);
         contentRoot.sizeDelta = new Vector2(640f, 350f);
+        UITheme.AddTopAccent(contentRoot, UITheme.Cyan);
 
         Button quitButton = CreateButton("QuitButton", root, "QUIT", QuitGame);
         RectTransform quitRect = quitButton.GetComponent<RectTransform>();
@@ -131,14 +147,16 @@ public class MainMenu : MonoBehaviour
         ClearContent();
 
         int stage = Mathf.Max(1, PlayerPrefs.GetInt(CurrentStageKey, 1));
-        TextMeshProUGUI heading = CreateText("Heading", contentRoot, "HOME", 26f, FontStyles.Bold, TextAlignmentOptions.Center);
+        TextMeshProUGUI heading = CreateText("Heading", contentRoot, "MISSION CONTROL", 24f, FontStyles.Bold, TextAlignmentOptions.Center);
         PlaceTop(heading.rectTransform, -34f, 36f);
+        heading.color = UITheme.CyanBright;
 
         TextMeshProUGUI stageText = CreateText("Stage", contentRoot, $"STAGE {stage}", 42f, FontStyles.Bold, TextAlignmentOptions.Center);
         PlaceCenter(stageText.rectTransform, 0f, 76f, 320f, 60f);
 
-        TextMeshProUGUI detail = CreateText("Detail", contentRoot, "15 waves. Boss waves at 5, 10 and 15.", 17f, FontStyles.Normal, TextAlignmentOptions.Center);
+        TextMeshProUGUI detail = CreateText("Detail", contentRoot, "15 WAVES  //  COMMANDERS AT 05, 10, 15", 15f, FontStyles.Bold, TextAlignmentOptions.Center);
         PlaceCenter(detail.rectTransform, 0f, 8f, 460f, 34f);
+        detail.color = UITheme.TextMuted;
 
         Button playButton = CreateButton("PlayButton", contentRoot, "PLAY", StartGame);
         RectTransform playRect = playButton.GetComponent<RectTransform>();
@@ -152,6 +170,7 @@ public class MainMenu : MonoBehaviour
 
         TextMeshProUGUI heading = CreateText("Heading", contentRoot, "TOWERS", 26f, FontStyles.Bold, TextAlignmentOptions.Center);
         PlaceTop(heading.rectTransform, -34f, 36f);
+        heading.color = UITheme.CyanBright;
 
         CreateTowerCard("CannonTowerCard", "CANNON TOWER", "Explosive shells with splash and heavy upgrade scaling.", CannonTowerId, true, -216f);
         CreateTowerCard("TeslaTowerCard", "TESLA TOWER", "Rapid arcs with longer range and steadier damage.", TeslaTowerId, IsTowerUnlocked(TeslaTowerId), 216f);
@@ -165,6 +184,7 @@ public class MainMenu : MonoBehaviour
 
         RectTransform card = CreatePanel(cardName, contentRoot, cardColor);
         PlaceCenter(card, x, -10f, 196f, 198f);
+        UITheme.AddTopAccent(card, selected ? UITheme.Cyan : unlocked ? UITheme.Border : new Color(0.22f, 0.24f, 0.27f, 1f));
 
         TextMeshProUGUI name = CreateText("Name", card, towerName, 20f, FontStyles.Bold, TextAlignmentOptions.Center);
         PlaceTop(name.rectTransform, -18f, 34f);
@@ -217,14 +237,7 @@ public class MainMenu : MonoBehaviour
         image.color = new Color(0.18f, 0.5f, 0.74f, 1f);
 
         Button button = obj.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = image.color;
-        colors.highlightedColor = new Color(0.25f, 0.62f, 0.88f, 1f);
-        colors.pressedColor = new Color(0.12f, 0.36f, 0.56f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = new Color(0.16f, 0.18f, 0.22f, 1f);
-        colors.colorMultiplier = 1f;
-        button.colors = colors;
+        UITheme.StyleButton(button);
         button.onClick.AddListener(onClick);
 
         TextMeshProUGUI text = CreateText("Text", rect, label, 18f, FontStyles.Bold, TextAlignmentOptions.Center);
@@ -240,7 +253,7 @@ public class MainMenu : MonoBehaviour
         GameObject obj = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform rect = obj.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
-        obj.GetComponent<Image>().color = color;
+        UITheme.StylePanel(obj.GetComponent<Image>(), color);
         return rect;
     }
 
@@ -263,7 +276,7 @@ public class MainMenu : MonoBehaviour
         label.fontSize = fontSize;
         label.fontStyle = style;
         label.alignment = alignment;
-        label.color = new Color(0.91f, 0.94f, 0.98f, 1f);
+        UITheme.StyleText(label);
         label.textWrappingMode = TextWrappingModes.Normal;
         label.raycastTarget = false;
         return label;

@@ -584,7 +584,8 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    Standalone: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
@@ -684,11 +685,11 @@ PlayerSettings:
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
   enableDirectStorage: 0
-  cloudProjectId: 4e879f25-1485-47e5-ab60-5c32ab91fe40
+  cloudProjectId: 6aa30bd2-33b4-4b5c-8942-7e2c0a337172
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
   projectName: The Tower
-  organizationId: fretux
+  organizationId: daefee08
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

@@ -9,6 +9,7 @@ public class FloatingWorldText : MonoBehaviour
     Color startColor = Color.white;
     float duration = 0.75f;
     float elapsed;
+    Vector3 startScale;
 
     public void Configure(float fadeDuration, Vector3 moveOffset)
     {
@@ -20,6 +21,7 @@ public class FloatingWorldText : MonoBehaviour
     {
         text = GetComponent<TextMeshPro>();
         startPosition = transform.position;
+        startScale = transform.localScale;
         if (text != null)
             startColor = text.color;
     }
@@ -29,6 +31,7 @@ public class FloatingWorldText : MonoBehaviour
         elapsed += Time.deltaTime;
         float t = Mathf.Clamp01(elapsed / duration);
         transform.position = Vector3.Lerp(startPosition, startPosition + offset, t);
+        transform.localScale = Vector3.Lerp(startScale * 1.18f, startScale, t);
 
         if (text != null)
             text.color = new Color(startColor.r, startColor.g, startColor.b, 1f - t);

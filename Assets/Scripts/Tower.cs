@@ -8,9 +8,9 @@ public class Tower : MonoBehaviour
 
     public static Tower Instance;
     public GameObject bulletPrefab;
-    public int damage = 1;
+    public int damage = 2;
     public float fireRate = 1f;
-    public float attackRange = 5f;
+    public float attackRange = 6f;
     public float splashRadius = 1.15f;
     public float splashDamageMultiplier = 0.45f;
     public float shellDamageMultiplier = 1f;
@@ -112,7 +112,9 @@ public class Tower : MonoBehaviour
         rangeObject.transform.position = transform.position;
         rangeCircle = rangeObject.GetComponent<SpriteRenderer>();
         rangeCircle.sprite = CreateCircleSprite();
-        rangeCircle.color = new Color(0.72f, 0.74f, 0.78f, 0.16f);
+        rangeCircle.color = isTeslaTower
+            ? new Color(0.22f, 0.78f, 1f, 0.2f)
+            : new Color(1f, 0.68f, 0.22f, 0.16f);
         rangeCircle.sortingOrder = -10;
         UpdateRangeCircle();
     }

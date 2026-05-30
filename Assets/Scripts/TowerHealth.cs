@@ -56,7 +56,7 @@ public class TowerHealth : MonoBehaviour
         if (healthFill != null)
         {
             healthFill.fillAmount = 1f;
-            healthFill.color = Color.Lerp(lowHealthColor, highHealthColor, healthPercentage);
+            healthFill.color = Color.Lerp(UITheme.Red, UITheme.Green, healthPercentage);
 
             RectTransform fillRect = healthFill.rectTransform;
             fillRect.anchorMax = new Vector2(healthPercentage, fillRect.anchorMax.y);
@@ -101,7 +101,8 @@ public class TowerHealth : MonoBehaviour
         Image panel = container.GetComponent<Image>();
         if (panel == null)
             panel = container.gameObject.AddComponent<Image>();
-        panel.color = new Color(0.05f, 0.06f, 0.08f, 0.84f);
+        UITheme.StylePanel(panel, UITheme.Panel, UITheme.Border);
+        UITheme.AddTopAccent(container, UITheme.Green, 3f);
 
         TextMeshProUGUI label = container.Find("Label")?.GetComponent<TextMeshProUGUI>();
         if (label == null)
@@ -184,10 +185,12 @@ public class TowerHealth : MonoBehaviour
         rect.SetAsLastSibling();
 
         Image background = overlay.GetComponent<Image>();
-        background.color = new Color(0f, 0f, 0f, 0.8f);
+        background.color = new Color(0.005f, 0.012f, 0.022f, 0.92f);
         background.raycastTarget = true;
 
-        TextMeshProUGUI title = CreateText("Title", rect, "STAGE LOST", 44f);
+        UITheme.AddAccent(rect, "DefeatLine", UITheme.Red, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-220f, 110f), new Vector2(220f, 113f));
+        TextMeshProUGUI title = CreateText("Title", rect, "CORE BREACHED", 44f);
+        title.color = UITheme.Red;
         title.alignment = TextAlignmentOptions.Center;
         PlaceOverlayRect(title.rectTransform, 0f, 64f, 420f, 68f);
 
@@ -232,7 +235,7 @@ public class TowerHealth : MonoBehaviour
         label.text = text;
         label.fontSize = fontSize;
         label.fontStyle = FontStyles.Bold;
-        label.color = new Color(0.92f, 0.95f, 1f, 1f);
+        UITheme.StyleText(label);
         label.raycastTarget = false;
         return label;
     }
@@ -243,18 +246,8 @@ public class TowerHealth : MonoBehaviour
         RectTransform rect = obj.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
 
-        Image image = obj.GetComponent<Image>();
-        image.color = new Color(0.18f, 0.5f, 0.74f, 1f);
-
         Button button = obj.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = image.color;
-        colors.highlightedColor = new Color(0.25f, 0.62f, 0.88f, 1f);
-        colors.pressedColor = new Color(0.12f, 0.36f, 0.56f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = new Color(0.16f, 0.18f, 0.22f, 1f);
-        colors.colorMultiplier = 1f;
-        button.colors = colors;
+        UITheme.StyleButton(button);
         button.onClick.AddListener(onClick);
 
         TextMeshProUGUI text = CreateText("Text", rect, label, 18f);

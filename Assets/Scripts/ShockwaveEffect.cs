@@ -6,6 +6,8 @@ public class ShockwaveEffect : MonoBehaviour
     float duration = 0.28f;
     float elapsed;
     Vector3 startScale;
+    Color startColor;
+    Color endColor;
 
     public void Configure(float effectDuration)
     {
@@ -17,6 +19,11 @@ public class ShockwaveEffect : MonoBehaviour
         line = GetComponent<LineRenderer>();
         startScale = transform.localScale * 0.35f;
         transform.localScale = startScale;
+        if (line != null)
+        {
+            startColor = line.startColor;
+            endColor = line.endColor;
+        }
     }
 
     void Update()
@@ -27,9 +34,8 @@ public class ShockwaveEffect : MonoBehaviour
 
         if (line != null)
         {
-            Color color = Color.Lerp(new Color(0.95f, 0.82f, 0.45f, 0.8f), new Color(0.95f, 0.82f, 0.45f, 0f), t);
-            line.startColor = color;
-            line.endColor = color;
+            line.startColor = new Color(startColor.r, startColor.g, startColor.b, Mathf.Lerp(startColor.a, 0f, t));
+            line.endColor = new Color(endColor.r, endColor.g, endColor.b, Mathf.Lerp(endColor.a, 0f, t));
         }
 
         if (elapsed >= duration)

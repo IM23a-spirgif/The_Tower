@@ -128,7 +128,9 @@ public class EnemyHealth : MonoBehaviour
         text.text = damage.ToString();
         text.fontSize = 3.1f;
         text.alignment = TextAlignmentOptions.Center;
-        text.color = Color.white;
+        text.color = GetDamageTakenMultiplier() > 1f
+            ? new Color(0.4f, 0.9f, 1f, 1f)
+            : new Color(1f, 0.88f, 0.58f, 1f);
         text.sortingOrder = 50;
         textObject.AddComponent<FloatingWorldText>().Configure(0.75f, new Vector3(0f, 0.58f, 0f));
     }

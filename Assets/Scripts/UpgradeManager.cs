@@ -49,7 +49,10 @@ public class UpgradeManager : MonoBehaviour
     Action currentChoiceComplete;
     int bonusBitsPerKill;
     float hitBitChance;
+    float salvageProgress;
     int rerollCost = 1;
+    const float BaseBitsPerKill = 0.5f;
+    const float SalvageBonusPerStack = 0.15f;
 
     static readonly CardDefinition[] CannonCards =
     {
@@ -118,7 +121,12 @@ public class UpgradeManager : MonoBehaviour
 
     public void EnemyKilled()
     {
-        bits += 1 + bonusBitsPerKill;
+        salvageProgress += BaseBitsPerKill + bonusBitsPerKill * SalvageBonusPerStack;
+        while (salvageProgress >= 1f)
+        {
+            bits++;
+            salvageProgress -= 1f;
+        }
         UpdateBitsText();
     }
 
@@ -179,7 +187,7 @@ public class UpgradeManager : MonoBehaviour
             if (!upgradeLevels.ContainsKey(card.type))
                 upgradeLevels[card.type] = 0;
             if (!upgradeCosts.ContainsKey(card.type))
-                upgradeCosts[card.type] = card.baseCost;
+                upgradeCosts[card.type] = Mathf.CeilToInt(card.baseCost * 1.2f);
         }
     }
 
@@ -214,7 +222,7 @@ public class UpgradeManager : MonoBehaviour
                 freeType = FreeUpgradeType.KillBonus,
                 isFree = true,
                 title = $"SALVAGE BONUS {ToRoman(bonusBitsPerKill + 1)}",
-                description = "Enemies killed give +1 extra bit from now on.",
+                description = "Enemies contribute +15% more salvage toward Bits.",
                 footer = "Free",
                 rarity = "Supply"
             },
@@ -222,8 +230,8 @@ public class UpgradeManager : MonoBehaviour
             {
                 freeType = FreeUpgradeType.HitBonus,
                 isFree = true,
-                title = $"SCRAP ROUNDS {ToRoman(Mathf.RoundToInt(hitBitChance / 0.4f) + 1)}",
-                description = "Bullet hits gain a +40% chance to give 1 bit.",
+                title = $"SCRAP ROUNDS {ToRoman(Mathf.RoundToInt(hitBitChance / 0.15f) + 1)}",
+                description = "Bullet hits gain a +15% chance to give 1 bit.",
                 footer = "Free",
                 rarity = "Supply"
             }
@@ -315,6 +323,7 @@ public class UpgradeManager : MonoBehaviour
         outline.effectColor = GetRarityBorderColor(offer.rarity);
         RarityPulse pulse = cardObject.AddComponent<RarityPulse>();
         pulse.Configure(outline, GetRarityBorderColor(offer.rarity));
+        UITheme.AddTopAccent(cardRect, GetRarityBorderColor(offer.rarity), 4f);
 
         Button button = cardObject.GetComponent<Button>();
         ColorBlock colors = button.colors;
@@ -328,6 +337,7 @@ public class UpgradeManager : MonoBehaviour
         button.onClick.AddListener(() => SelectOffer(offer));
 
         TextMeshProUGUI rarity = CreateText("Rarity", cardRect, offer.rarity.ToUpperInvariant(), 11f, FontStyles.Bold, TextAlignmentOptions.Center);
+        rarity.color = GetRarityBorderColor(offer.rarity);
         TextMeshProUGUI title = CreateText("Title", cardRect, offer.title, 16f, FontStyles.Bold, TextAlignmentOptions.Center);
         TextMeshProUGUI description = CreateText("Description", cardRect, offer.description, 12f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         TextMeshProUGUI footer = CreateText("Footer", cardRect, offer.footer, 14f, FontStyles.Bold, TextAlignmentOptions.Center);
@@ -641,7 +651,7 @@ public class UpgradeManager : MonoBehaviour
                 bonusBitsPerKill++;
                 break;
             case FreeUpgradeType.HitBonus:
-                hitBitChance += 0.4f;
+                hitBitChance += 0.15f;
                 break;
         }
 
@@ -721,19 +731,40 @@ public class UpgradeManager : MonoBehaviour
             rect.pivot = new Vector2(0f, 1f);
             rect.anchoredPosition = new Vector2(24f, -24f);
             rect.sizeDelta = new Vector2(170f, 42f);
+            EnsureBitsPanel(rect);
         }
 
         bitsText.alignment = TextAlignmentOptions.Center;
         bitsText.fontSize = 21f;
         bitsText.fontStyle = FontStyles.Bold;
-        bitsText.color = new Color(0.98f, 0.87f, 0.32f, 1f);
+        bitsText.color = UITheme.Amber;
         bitsText.raycastTarget = false;
 
         Outline outline = bitsText.GetComponent<Outline>();
         if (outline == null)
             outline = bitsText.gameObject.AddComponent<Outline>();
-        outline.effectColor = new Color(0f, 0f, 0f, 0.55f);
+        outline.effectColor = new Color(0f, 0f, 0f, 0.72f);
         outline.effectDistance = new Vector2(1.5f, -1.5f);
+    }
+
+    static void EnsureBitsPanel(RectTransform bitsRect)
+    {
+        Transform parent = bitsRect.parent;
+        if (parent == null || parent.Find("BitsCounterPanel") != null)
+            return;
+
+        GameObject panelObject = new GameObject("BitsCounterPanel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform panel = panelObject.GetComponent<RectTransform>();
+        panel.SetParent(parent, false);
+        panel.anchorMin = bitsRect.anchorMin;
+        panel.anchorMax = bitsRect.anchorMax;
+        panel.pivot = bitsRect.pivot;
+        panel.anchoredPosition = bitsRect.anchoredPosition;
+        panel.sizeDelta = bitsRect.sizeDelta;
+        panel.SetSiblingIndex(bitsRect.GetSiblingIndex());
+
+        UITheme.StylePanel(panelObject.GetComponent<Image>(), UITheme.Panel, new Color(0.66f, 0.5f, 0.16f, 0.85f));
+        UITheme.AddTopAccent(panel, UITheme.Amber, 3f);
     }
 
     GameObject CreateOverlay(bool freeFallback)
@@ -749,11 +780,12 @@ public class UpgradeManager : MonoBehaviour
         rect.SetAsLastSibling();
 
         Image image = overlay.GetComponent<Image>();
-        image.color = new Color(0f, 0f, 0f, 0.74f);
+        image.color = new Color(0.005f, 0.012f, 0.022f, 0.88f);
         image.raycastTarget = true;
 
         string titleText = freeFallback ? "LOW BITS: CHOOSE SUPPLY BOOST" : IsTeslaTowerSelected() ? "CHOOSE TESLA UPGRADE" : "CHOOSE CANNON UPGRADE";
         TextMeshProUGUI title = CreateText("Title", rect, titleText, 28f, FontStyles.Bold, TextAlignmentOptions.Center);
+        title.color = IsTeslaTowerSelected() ? UITheme.CyanBright : UITheme.Amber;
         RectTransform titleRect = title.rectTransform;
         titleRect.anchorMin = new Vector2(0.5f, 0.5f);
         titleRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -769,6 +801,9 @@ public class UpgradeManager : MonoBehaviour
         bitsRect.pivot = new Vector2(0.5f, 0.5f);
         bitsRect.anchoredPosition = new Vector2(0f, 104f);
         bitsRect.sizeDelta = new Vector2(220f, 30f);
+
+        RectTransform headerLine = UITheme.AddAccent(rect, "HeaderLine", new Color(0.18f, 0.56f, 0.72f, 0.75f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-260f, 88f), new Vector2(260f, 90f));
+        headerLine.SetAsFirstSibling();
 
         return overlay;
     }
@@ -827,18 +862,8 @@ public class UpgradeManager : MonoBehaviour
         RectTransform rect = obj.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
 
-        Image image = obj.GetComponent<Image>();
-        image.color = new Color(0.18f, 0.5f, 0.74f, 1f);
-
         Button button = obj.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = image.color;
-        colors.highlightedColor = new Color(0.25f, 0.62f, 0.88f, 1f);
-        colors.pressedColor = new Color(0.12f, 0.36f, 0.56f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = new Color(0.16f, 0.18f, 0.22f, 0.82f);
-        colors.colorMultiplier = 1f;
-        button.colors = colors;
+        UITheme.StyleButton(button, true);
         button.onClick.AddListener(onClick);
 
         TextMeshProUGUI text = CreateText("Text", rect, label, 16f, FontStyles.Bold, TextAlignmentOptions.Center);
@@ -860,7 +885,7 @@ public class UpgradeManager : MonoBehaviour
         label.fontSize = fontSize;
         label.fontStyle = style;
         label.alignment = alignment;
-        label.color = new Color(0.9f, 0.93f, 0.98f, 1f);
+        UITheme.StyleText(label);
         label.textWrappingMode = TextWrappingModes.Normal;
         label.raycastTarget = false;
         return label;

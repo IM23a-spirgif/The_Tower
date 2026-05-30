@@ -20,12 +20,12 @@ public class EnemySpawner : MonoBehaviour
     private bool isSpawning = false;
     private bool stageComplete = false;
     private int enemiesRemaining = 0;
-    private int baseEnemyCount = 5;
-    private int enemyCountIncrease = 3;
-    private float enemySpeed = 1.16f;
+    private int baseEnemyCount = 9;
+    private int enemyCountIncrease = 5;
+    private float enemySpeed = 1.05f;
     private int enemyBaseHP = 1;
-    private float maxEnemySpeed = 6f;
-    private int maxEnemyHP = 20;
+    private float maxEnemySpeed = 5.2f;
+    private int maxEnemyHP = 32;
     private RectTransform bossHealthBar;
     private Image bossHealthFill;
     private TextMeshProUGUI bossHealthText;
@@ -60,7 +60,7 @@ public class EnemySpawner : MonoBehaviour
         for (int i = 0; i < enemiesToSpawn; i++)
         {
             SpawnEnemy(false);
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(0.72f);
         }
 
         if (IsBossWave(currentWave))
@@ -79,8 +79,8 @@ public class EnemySpawner : MonoBehaviour
         Enemy enemyComponent = newEnemy.GetComponent<Enemy>();
         if (enemyComponent != null)
         {
-            float waveSpeedBonus = currentWave * 0.028f;
-            float stageSpeedBonus = (currentStage - 1) * 0.025f;
+            float waveSpeedBonus = currentWave * 0.022f;
+            float stageSpeedBonus = (currentStage - 1) * 0.018f;
             enemyComponent.speed = Mathf.Min(maxEnemySpeed, enemySpeed + waveSpeedBonus + stageSpeedBonus);
             if (boss)
                 enemyComponent.speed *= 0.72f;
@@ -89,9 +89,11 @@ public class EnemySpawner : MonoBehaviour
         EnemyHealth enemyHealth = newEnemy.GetComponent<EnemyHealth>();
         if (enemyHealth != null)
         {
-            int scaledHP = enemyBaseHP + Mathf.FloorToInt(currentWave * 0.14f) + Mathf.FloorToInt((currentStage - 1) * 0.25f);
+            int scaledHP = enemyBaseHP
+                + Mathf.RoundToInt((currentWave - 1) * 0.15f)
+                + Mathf.RoundToInt((currentStage - 1) * 0.45f);
             if (boss)
-                scaledHP = Mathf.RoundToInt((scaledHP + currentStage + currentWave * 0.48f) * 3.05f);
+                scaledHP = Mathf.RoundToInt((scaledHP + currentStage + currentWave * 0.4f) * 2.6f);
             scaledHP = Mathf.Min(boss ? maxEnemyHP * 4 : maxEnemyHP, scaledHP);
             enemyHealth.SetHealth(scaledHP);
 
@@ -131,7 +133,7 @@ public class EnemySpawner : MonoBehaviour
         if (roll < fastChance)
         {
             enemyObject.name = "Fast Enemy";
-            enemyComponent.speed *= 1.65f;
+            enemyComponent.speed *= 1.55f;
             enemyObject.transform.localScale *= 0.82f;
             if (spriteRenderer != null)
                 spriteRenderer.color = new Color(0.35f, 0.78f, 1f, 1f);
@@ -141,7 +143,7 @@ public class EnemySpawner : MonoBehaviour
             enemyObject.name = "Tank Enemy";
             enemyComponent.speed *= 0.62f;
             enemyObject.transform.localScale *= 1.32f;
-            enemyHealth.SetHealth(Mathf.Max(2, Mathf.RoundToInt(enemyHealth.GetCurrentHealth() * 2.35f)));
+            enemyHealth.SetHealth(Mathf.Max(2, Mathf.RoundToInt(enemyHealth.GetCurrentHealth() * 1.8f)));
             if (spriteRenderer != null)
                 spriteRenderer.color = new Color(0.78f, 0.56f, 0.28f, 1f);
         }
@@ -246,7 +248,7 @@ public class EnemySpawner : MonoBehaviour
         if (bossHealthFill != null)
         {
             bossHealthFill.fillAmount = 1f;
-            bossHealthFill.color = Color.Lerp(new Color(0.55f, 0.05f, 0.06f, 1f), new Color(0.95f, 0.2f, 0.18f, 1f), percent);
+            bossHealthFill.color = Color.Lerp(new Color(0.48f, 0.035f, 0.055f, 1f), UITheme.Red, percent);
             RectTransform fillRect = bossHealthFill.rectTransform;
             fillRect.anchorMax = new Vector2(percent, fillRect.anchorMax.y);
             fillRect.offsetMax = Vector2.zero;
@@ -284,10 +286,12 @@ public class EnemySpawner : MonoBehaviour
         rect.SetAsLastSibling();
 
         Image background = overlay.GetComponent<Image>();
-        background.color = new Color(0f, 0f, 0f, 0.78f);
+        background.color = new Color(0.005f, 0.012f, 0.022f, 0.9f);
         background.raycastTarget = true;
 
-        TextMeshProUGUI title = CreateOverlayText("Title", rect, "YOU WIN", 46f, FontStyles.Bold);
+        UITheme.AddAccent(rect, "VictoryLine", UITheme.Green, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-220f, 118f), new Vector2(220f, 121f));
+        TextMeshProUGUI title = CreateOverlayText("Title", rect, "STAGE SECURED", 46f, FontStyles.Bold);
+        title.color = UITheme.Green;
         PlaceOverlayRect(title.rectTransform, 0f, 76f, 420f, 70f);
 
         TextMeshProUGUI subtitle = CreateOverlayText("Subtitle", rect, $"Stage {currentStage} complete. Stage {nextStage} unlocked.", 20f, FontStyles.Normal);
@@ -296,7 +300,7 @@ public class EnemySpawner : MonoBehaviour
         if (unlockedTeslaTower)
         {
             TextMeshProUGUI unlockText = CreateOverlayText("UnlockText", rect, "You unlocked: Tesla Tower", 22f, FontStyles.Bold);
-            unlockText.color = new Color(0.52f, 0.86f, 1f, 1f);
+            unlockText.color = UITheme.CyanBright;
             PlaceOverlayRect(unlockText.rectTransform, 0f, -14f, 520f, 42f);
         }
 
@@ -331,7 +335,8 @@ public class EnemySpawner : MonoBehaviour
         Image panel = bossHealthBar.GetComponent<Image>();
         if (panel == null)
             panel = bossHealthBar.gameObject.AddComponent<Image>();
-        panel.color = new Color(0.05f, 0.03f, 0.035f, 0.88f);
+        UITheme.StylePanel(panel, new Color(0.12f, 0.035f, 0.05f, 0.94f), new Color(0.9f, 0.18f, 0.22f, 0.9f));
+        UITheme.AddTopAccent(bossHealthBar, UITheme.Red, 3f);
 
         RectTransform track = bossHealthBar.Find("Track")?.GetComponent<RectTransform>();
         if (track == null)
@@ -343,7 +348,7 @@ public class EnemySpawner : MonoBehaviour
             track.anchoredPosition = new Vector2(0f, 8f);
             track.sizeDelta = new Vector2(-24f, 16f);
             Image trackImage = track.gameObject.AddComponent<Image>();
-            trackImage.color = new Color(0.16f, 0.08f, 0.08f, 1f);
+            trackImage.color = new Color(0.2f, 0.06f, 0.08f, 1f);
         }
 
         bossHealthFill = track.Find("Fill")?.GetComponent<Image>();
@@ -397,7 +402,8 @@ public class EnemySpawner : MonoBehaviour
         panel.sizeDelta = new Vector2(150f, 42f);
 
         Image panelImage = panelObject.GetComponent<Image>();
-        panelImage.color = new Color(0.05f, 0.06f, 0.08f, 0.84f);
+        UITheme.StylePanel(panelImage, UITheme.Panel, UITheme.Border);
+        UITheme.AddTopAccent(panel, UITheme.Cyan, 3f);
 
         GameObject textObject = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         RectTransform textRect = textObject.GetComponent<RectTransform>();
@@ -411,7 +417,7 @@ public class EnemySpawner : MonoBehaviour
         waveText.alignment = TextAlignmentOptions.Center;
         waveText.fontSize = 21f;
         waveText.fontStyle = FontStyles.Bold;
-        waveText.color = new Color(0.92f, 0.95f, 1f, 1f);
+        waveText.color = UITheme.Text;
         waveText.raycastTarget = false;
     }
 
@@ -433,17 +439,10 @@ public class EnemySpawner : MonoBehaviour
         Image image = startWaveButton.GetComponent<Image>();
         if (image != null)
         {
-            image.color = new Color(0.2f, 0.66f, 0.9f, 1f);
+            image.color = new Color(0.08f, 0.42f, 0.61f, 1f);
         }
 
-        ColorBlock colors = startWaveButton.colors;
-        colors.normalColor = new Color(0.2f, 0.66f, 0.9f, 1f);
-        colors.highlightedColor = new Color(0.33f, 0.78f, 1f, 1f);
-        colors.pressedColor = new Color(0.12f, 0.48f, 0.7f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = new Color(0.18f, 0.22f, 0.27f, 0.7f);
-        colors.colorMultiplier = 1f;
-        startWaveButton.colors = colors;
+        UITheme.StyleButton(startWaveButton);
 
         TextMeshProUGUI label = startWaveButton.GetComponentInChildren<TextMeshProUGUI>();
         if (label != null)
@@ -467,7 +466,7 @@ public class EnemySpawner : MonoBehaviour
         label.fontSize = fontSize;
         label.fontStyle = style;
         label.alignment = TextAlignmentOptions.Center;
-        label.color = new Color(0.94f, 0.96f, 1f, 1f);
+        UITheme.StyleText(label);
         label.textWrappingMode = TextWrappingModes.Normal;
         label.raycastTarget = false;
         return label;
@@ -479,18 +478,8 @@ public class EnemySpawner : MonoBehaviour
         RectTransform rect = obj.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
 
-        Image image = obj.GetComponent<Image>();
-        image.color = new Color(0.18f, 0.5f, 0.74f, 1f);
-
         Button button = obj.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = image.color;
-        colors.highlightedColor = new Color(0.25f, 0.62f, 0.88f, 1f);
-        colors.pressedColor = new Color(0.12f, 0.36f, 0.56f, 1f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = new Color(0.16f, 0.18f, 0.22f, 1f);
-        colors.colorMultiplier = 1f;
-        button.colors = colors;
+        UITheme.StyleButton(button);
         button.onClick.AddListener(onClick);
 
         TextMeshProUGUI text = CreateOverlayText("Text", rect, label, 18f, FontStyles.Bold);

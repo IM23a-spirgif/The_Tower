@@ -15,7 +15,7 @@ public class UpgradeManager : MonoBehaviour
         HitBonus
     }
 
-    struct CardDefinition
+    public struct CardDefinition
     {
         public UpgradeCard.UpgradeType type;
         public string title;
@@ -841,6 +841,13 @@ public class UpgradeManager : MonoBehaviour
     static CardDefinition[] GetActiveCards()
     {
         return IsTeslaTowerSelected() ? TeslaCards : CannonCards;
+    }
+
+    public static IEnumerable<CardDefinition> GetCardsForTower(string towerId)
+    {
+        CardDefinition[] cards = towerId == TeslaTowerId ? TeslaCards : CannonCards;
+        foreach (CardDefinition card in cards)
+            yield return card;
     }
 
     static bool IsTeslaTowerSelected()

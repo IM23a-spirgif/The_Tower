@@ -15,6 +15,7 @@ public class MainMenu : MonoBehaviour
     RectTransform contentRoot;
     TextMeshProUGUI homeTabLabel;
     TextMeshProUGUI towersTabLabel;
+    TextMeshProUGUI deckTabLabel;
 
     void Start()
     {
@@ -123,6 +124,8 @@ public class MainMenu : MonoBehaviour
         homeTabLabel = homeButton.GetComponentInChildren<TextMeshProUGUI>();
         Button towersButton = CreateButton("TowersButton", nav, "TOWERS", () => ShowTowers());
         towersTabLabel = towersButton.GetComponentInChildren<TextMeshProUGUI>();
+        Button deckButton = CreateButton("DeckButton", nav, "DECK", () => ShowDeck());
+        deckTabLabel = deckButton.GetComponentInChildren<TextMeshProUGUI>();
 
         contentRoot = CreatePanel("Content", root, UITheme.Panel);
         contentRoot.anchorMin = new Vector2(0.5f, 0.5f);
@@ -143,7 +146,7 @@ public class MainMenu : MonoBehaviour
 
     void ShowHome()
     {
-        SetTabState(true);
+        SetTabState(homeTabLabel);
         ClearContent();
 
         int stage = Mathf.Max(1, PlayerPrefs.GetInt(CurrentStageKey, 1));
@@ -165,7 +168,7 @@ public class MainMenu : MonoBehaviour
 
     void ShowTowers()
     {
-        SetTabState(false);
+        SetTabState(towersTabLabel);
         ClearContent();
 
         TextMeshProUGUI heading = CreateText("Heading", contentRoot, "TOWERS", 26f, FontStyles.Bold, TextAlignmentOptions.Center);
@@ -174,6 +177,118 @@ public class MainMenu : MonoBehaviour
 
         CreateTowerCard("CannonTowerCard", "CANNON TOWER", "Explosive shells with splash and heavy upgrade scaling.", CannonTowerId, true, -216f);
         CreateTowerCard("TeslaTowerCard", "TESLA TOWER", "Rapid arcs with longer range and steadier damage.", TeslaTowerId, IsTowerUnlocked(TeslaTowerId), 216f);
+    }
+
+    void ShowDeck()
+    {
+        SetTabState(deckTabLabel);
+        ClearContent();
+
+        string selectedTower = PlayerPrefs.GetString(SelectedTowerKey, CannonTowerId);
+        string towerName = selectedTower == TeslaTowerId ? "TESLA TOWER" : "CANNON TOWER";
+        TextMeshProUGUI heading = CreateText("Heading", contentRoot, $"{towerName} DECK", 24f, FontStyles.Bold, TextAlignmentOptions.Center);
+        PlaceTop(heading.rectTransform, -22f, 32f);
+        heading.color = UITheme.CyanBright;
+
+        TextMeshProUGUI detail = CreateText("Detail", contentRoot, "CURRENTLY EQUIPPED TOWER  //  ALL CARDS", 12f, FontStyles.Bold, TextAlignmentOptions.Center);
+        PlaceTop(detail.rectTransform, -52f, 20f);
+        detail.color = UITheme.TextMuted;
+
+        RectTransform scrollView = CreateRect("DeckScrollView", contentRoot);
+        PlaceCenter(scrollView, 0f, -38f, 604f, 248f);
+        ScrollRect scrollRect = scrollView.gameObject.AddComponent<ScrollRect>();
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        scrollRect.scrollSensitivity = 22f;
+
+        RectTransform viewport = CreatePanel("Viewport", scrollView, new Color(0.025f, 0.04f, 0.06f, 0.72f));
+        viewport.anchorMin = Vector2.zero;
+        viewport.anchorMax = Vector2.one;
+        viewport.offsetMin = Vector2.zero;
+        viewport.offsetMax = Vector2.zero;
+        Mask mask = viewport.gameObject.AddComponent<Mask>();
+        mask.showMaskGraphic = true;
+
+        RectTransform grid = CreateRect("Cards", viewport);
+        grid.anchorMin = new Vector2(0f, 1f);
+        grid.anchorMax = new Vector2(1f, 1f);
+        grid.pivot = new Vector2(0.5f, 1f);
+        grid.anchoredPosition = Vector2.zero;
+        grid.sizeDelta = Vector2.zero;
+        GridLayoutGroup layout = grid.gameObject.AddComponent<GridLayoutGroup>();
+        layout.padding = new RectOffset(12, 12, 12, 12);
+        layout.cellSize = new Vector2(184f, 94f);
+        layout.spacing = new Vector2(12f, 12f);
+        layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        layout.constraintCount = 3;
+        ContentSizeFitter fitter = grid.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        scrollRect.viewport = viewport;
+        scrollRect.content = grid;
+
+        foreach (UpgradeManager.CardDefinition card in UpgradeManager.GetCardsForTower(selectedTower))
+            CreateDeckCard(grid, card);
+    }
+
+    void CreateDeckCard(Transform parent, UpgradeManager.CardDefinition definition)
+    {
+        RectTransform card = CreatePanel(definition.title + "Card", parent, UITheme.PanelRaised);
+        UITheme.AddTopAccent(card, GetRarityColor(definition.rarity), 3f);
+        Button button = card.gameObject.AddComponent<Button>();
+        button.targetGraphic = card.GetComponent<Image>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = UITheme.PanelRaised;
+        colors.highlightedColor = new Color(0.12f, 0.2f, 0.27f, 1f);
+        colors.pressedColor = new Color(0.06f, 0.14f, 0.2f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.colorMultiplier = 1f;
+        button.colors = colors;
+        button.onClick.AddListener(() => ShowDeckCardDetails(definition));
+
+        TextMeshProUGUI rarity = CreateText("Rarity", card, definition.rarity.ToUpperInvariant(), 10f, FontStyles.Bold, TextAlignmentOptions.Left);
+        PlaceDeckText(rarity.rectTransform, 10f, -8f, -10f, 14f);
+        rarity.color = GetRarityColor(definition.rarity);
+
+        TextMeshProUGUI title = CreateText("Title", card, definition.title, 14f, FontStyles.Bold, TextAlignmentOptions.TopLeft);
+        PlaceDeckText(title.rectTransform, 10f, -28f, -10f, 36f);
+
+        TextMeshProUGUI level = CreateText("Level", card, "LEVEL 1", 11f, FontStyles.Bold, TextAlignmentOptions.Left);
+        PlaceDeckText(level.rectTransform, 10f, -70f, -10f, 16f);
+        level.color = UITheme.Amber;
+    }
+
+    void ShowDeckCardDetails(UpgradeManager.CardDefinition definition)
+    {
+        SetTabState(deckTabLabel);
+        ClearContent();
+
+        TextMeshProUGUI heading = CreateText("Heading", contentRoot, definition.title, 25f, FontStyles.Bold, TextAlignmentOptions.Center);
+        PlaceTop(heading.rectTransform, -30f, 36f);
+        heading.color = UITheme.CyanBright;
+
+        TextMeshProUGUI rarity = CreateText("Rarity", contentRoot, definition.rarity.ToUpperInvariant(), 13f, FontStyles.Bold, TextAlignmentOptions.Center);
+        PlaceTop(rarity.rectTransform, -68f, 20f);
+        rarity.color = GetRarityColor(definition.rarity);
+
+        RectTransform detailPanel = CreatePanel("CardDetails", contentRoot, UITheme.PanelRaised);
+        PlaceCenter(detailPanel, 0f, -20f, 540f, 168f);
+        UITheme.AddTopAccent(detailPanel, GetRarityColor(definition.rarity), 4f);
+
+        TextMeshProUGUI description = CreateText("Description", detailPanel, definition.description, 17f, FontStyles.Normal, TextAlignmentOptions.Center);
+        PlaceCenter(description.rectTransform, 0f, 34f, 490f, 62f);
+
+        TextMeshProUGUI level = CreateText("Level", detailPanel, "CURRENT LEVEL  //  1", 13f, FontStyles.Bold, TextAlignmentOptions.Center);
+        PlaceCenter(level.rectTransform, 0f, -32f, 240f, 22f);
+        level.color = UITheme.Amber;
+
+        TextMeshProUGUI limits = CreateText("Limits", detailPanel, $"MAX LEVEL  //  {definition.maxStacks}     STARTING COST  //  {definition.baseCost} BITS", 12f, FontStyles.Bold, TextAlignmentOptions.Center);
+        PlaceCenter(limits.rectTransform, 0f, -60f, 480f, 22f);
+        limits.color = UITheme.TextMuted;
+
+        Button backButton = CreateButton("BackButton", contentRoot, "BACK TO DECK", ShowDeck);
+        PlaceCenter(backButton.GetComponent<RectTransform>(), 0f, -132f, 190f, 44f);
     }
 
     void CreateTowerCard(string cardName, string towerName, string descriptionText, string towerId, bool unlocked, float x)
@@ -213,12 +328,14 @@ public class MainMenu : MonoBehaviour
         return towerId == CannonTowerId || (towerId == TeslaTowerId && PlayerPrefs.GetInt(TeslaTowerUnlockedKey, 0) == 1);
     }
 
-    void SetTabState(bool homeActive)
+    void SetTabState(TextMeshProUGUI activeLabel)
     {
         if (homeTabLabel != null)
-            homeTabLabel.color = homeActive ? Color.white : new Color(0.68f, 0.73f, 0.8f, 1f);
+            homeTabLabel.color = homeTabLabel == activeLabel ? Color.white : new Color(0.68f, 0.73f, 0.8f, 1f);
         if (towersTabLabel != null)
-            towersTabLabel.color = homeActive ? new Color(0.68f, 0.73f, 0.8f, 1f) : Color.white;
+            towersTabLabel.color = towersTabLabel == activeLabel ? Color.white : new Color(0.68f, 0.73f, 0.8f, 1f);
+        if (deckTabLabel != null)
+            deckTabLabel.color = deckTabLabel == activeLabel ? Color.white : new Color(0.68f, 0.73f, 0.8f, 1f);
     }
 
     void ClearContent()
@@ -298,5 +415,27 @@ public class MainMenu : MonoBehaviour
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = new Vector2(x, y);
         rect.sizeDelta = new Vector2(width, height);
+    }
+
+    static void PlaceDeckText(RectTransform rect, float left, float top, float right, float height)
+    {
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.offsetMin = new Vector2(left, top - height);
+        rect.offsetMax = new Vector2(right, top);
+    }
+
+    static Color GetRarityColor(string rarity)
+    {
+        switch (rarity)
+        {
+            case "Common": return new Color(0.62f, 0.64f, 0.66f, 0.85f);
+            case "Uncommon": return new Color(0.22f, 0.9f, 0.34f, 0.9f);
+            case "Rare": return new Color(0.22f, 0.48f, 1f, 0.92f);
+            case "Epic": return new Color(0.68f, 0.25f, 1f, 0.95f);
+            case "Legendary": return new Color(1f, 0.55f, 0.08f, 0.98f);
+            default: return UITheme.Border;
+        }
     }
 }
